@@ -1,0 +1,58 @@
+using System;
+using System.IO;
+using System.Reflection;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
+
+namespace DeepCopy
+{
+    public class Program
+    {
+        public static void Main()
+        {
+            E instance = E.Instance;
+            E copy = CreateDeepCopy(instance);
+        }
+
+        public static T CreateDeepCopy<T>(T source)
+        {
+            if (Equals(source, null)) return default(T);
+            Type type = ((object) source).GetType();
+            if (type.IsSerializable) return createFastDeepCopy(source);
+            T copy = (T) FormatterServices.GetUninitializedObject(type);
+            FieldInfo[] fields = type.GetFields(
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            foreach (FieldInfo field in fields)
+                field.SetValue(copy, CreateDeepCopy(field.GetValue(source)));
+            return copy;
+        }
+
+        private static Z createFastDeepCopy<Z>(Z source)
+        {
+            using (MemoryStream stream = new MemoryStream(serializeToArray(source)))
+                return (Z) new BinaryFormatter().Deserialize(stream);
+        }
+
+        private static byte[] serializeToArray(object obj)
+        {
+            using (MemoryStream stream = new MemoryStream())
+            {
+                new BinaryFormatter().Serialize(stream, obj);
+                return stream.ToArray();
+            }
+        }
+    }
+    
+    class E
+    {
+        #region singleton
+        public static readonly E Instance = new E();
+
+        private E()
+        {
+        }
+        #endregion
+
+        public int Value = 1;
+    }
+}

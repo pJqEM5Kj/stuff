@@ -1,0 +1,8 @@
+ArcSegment
+BezierSegment
+LineSegment
+PolyBezierSegment
+PolyLineSegment
+PolyQuadraticBezierSegment
+QuadraticBezierSegment
+

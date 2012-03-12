@@ -1,0 +1,8 @@
+
+*.exe
+*.docstates
+*.dll
+obj/
+bin/
+*.sln
+*.suo

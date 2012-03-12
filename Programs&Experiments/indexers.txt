@@ -1,0 +1,42 @@
+class IndexerClass
+{
+    private int[] arr = new int[100];
+    public int this[int index]   // Indexer declaration
+    {
+        get
+        {
+            // Check the index limits.
+            if (index < 0 || index >= 100)
+            {
+                return 0;
+            }
+            else
+            {
+                return arr[index];
+            }
+        }
+        set
+        {
+            if (!(index < 0 || index >= 100))
+            {
+                arr[index] = value;
+            }
+        }
+    }
+}
+
+class MainClass
+{
+    static void Main()
+    {
+        IndexerClass test = new IndexerClass();
+        // Call the indexer to initialize the elements #3 and #5.
+        test[3] = 256;
+        test[5] = 1024;
+        for (int i = 0; i <= 10; i++)
+        {
+            System.Console.WriteLine("Element #{0} = {1}", i, test[i]);
+        }
+    }
+}
+

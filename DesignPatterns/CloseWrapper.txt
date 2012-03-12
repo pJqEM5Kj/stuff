@@ -1,0 +1,75 @@
+    public class CloseWrapper<T> : IDisposable
+    {
+        private static ConcurrentDictionary<Guid, Tuple<T, Action<T>>> Store = new ConcurrentDictionary<Guid, Tuple<T, Action<T>>>();
+
+        private Guid id;
+
+        public T Value { get; private set; }
+        private Action<T> closeAction;
+
+        private bool disposed = false;
+
+
+        public CloseWrapper(T obj, Action<T> closeAction)
+        {
+            if (obj == null)
+            {
+                throw new ArgumentNullException("obj");
+            }
+
+            if (closeAction == null)
+            {
+                throw new ArgumentNullException("closeAction");
+            }
+
+            id = Guid.NewGuid();
+            Value = obj;
+            this.closeAction = closeAction;
+
+            if (!Store.TryAdd(id, new Tuple<T, Action<T>>(Value, closeAction)))
+            {
+                throw new InvalidOperationException();
+            }
+        }
+
+
+        public void Close()
+        {
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            try
+            {
+                closeAction(Value);
+            }
+            finally
+            {
+                disposed = true;
+
+                closeAction = null;
+                Value = default(T);
+
+                Tuple<T, Action<T>> dummy;
+                Store.TryRemove(id, out dummy);
+                dummy = null;
+            }
+        }
+
+        ~CloseWrapper()
+        {
+            Dispose(false);
+        }
+    }

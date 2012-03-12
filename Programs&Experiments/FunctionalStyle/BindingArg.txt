@@ -1,0 +1,10 @@
+			//Func<Func<int, int, int>, int, Func<int, int>> funcThatBindsOneArg =
+			//    (functionWithTwoArgs, arg1) =>
+			//    {
+			//        return new Func<int, int>(arg2 => functionWithTwoArgs(arg1, arg2));
+			//    };
+
+			Func<Func<int, int, int>, int, Func<int, int>> funcThatBindsOneArg =
+				(functionWithTwoArgs, arg1) => (arg2 => functionWithTwoArgs(arg1, arg2));
+
+			Console.WriteLine(funcThatBindsOneArg((x, y) => x + y, 5)(7));

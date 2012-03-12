@@ -1,0 +1,63 @@
+			List<int> list = new List<int>()
+			{
+				1, 2, 3, 4, 5, 6, 7, 8//, 9, 10
+			};
+
+			#region function Perestanovki
+			Func<List<int>, List<List<int>>> perestanovki = null;
+			perestanovki = (List<int> inputList) =>
+				{
+					if (inputList == null)
+					{
+						throw new ArgumentNullException("list");
+					}
+
+					List<List<int>> result = new List<List<int>>();
+					
+					if (inputList.Count == 0)
+					{
+						return result;
+					}
+
+					if (inputList.Count == 1)
+					{
+						result.Add(new List<int>() { inputList[0] });
+					}
+
+					if (inputList.Count == 2)
+					{
+						result.Add(new List<int>() { inputList[0], inputList[1] });
+						result.Add(new List<int>() { inputList[1], inputList[0] });
+
+						return result;
+					}
+					
+					for(int i = 0; i < inputList.Count; i++)
+					{
+						List<int> tmpList = new List<int>(inputList);
+						tmpList.RemoveAt(i);
+
+						List<List<int>> innerResult = perestanovki(tmpList);
+						for(int j = 0; j < innerResult.Count; j++)
+						{
+							innerResult[j].Insert(0, inputList[i]);
+							result.Add(innerResult[j]);
+						}
+					}
+
+					return result;
+				};
+			#endregion
+
+			Stopwatch sw = Stopwatch.StartNew();
+			List<List<int>> funcResult = perestanovki(list);
+			sw.Stop();
+
+			Console.WriteLine(sw.ElapsedTicks);
+			Console.WriteLine(sw.ElapsedMilliseconds);
+
+			//foreach (List<int> l in funcResult)
+			//{
+			//    l.ForEach((int x) => Console.Write(" " + x));
+			//    Console.WriteLine();
+			//}

@@ -1,0 +1,29 @@
+	class Program
+	{
+		static void Main(string[] args)
+		{
+			Assembly assembly = Assembly.LoadWithPartialName("System.Core");
+			Assembly assembly2 = Assembly.Load(assembly.FullName);
+
+			object bigInt1 = assembly.CreateInstance("System.Numeric.BigInteger", true, BindingFlags.Instance | BindingFlags.Public,
+				null, new object[] { 2 }, System.Globalization.CultureInfo.CurrentCulture, new object[0]);
+
+			
+			Type bigIntType = assembly.GetType("System.Numeric.BigInteger");
+			ConstructorInfo ci = bigIntType.GetConstructor(new Type[] { typeof(int) });
+
+			
+			
+			object bigInt2 = ci.Invoke(new object[] { 1000 });
+
+			
+			
+			MethodInfo methodInfo_Pow = bigIntType.GetMethod("Pow", BindingFlags.Static | BindingFlags.Public);
+			object bigInt3 = methodInfo_Pow.Invoke(null, new object[] { bigInt1, bigInt2 });
+
+			
+			Console.WriteLine("Long arithmetic :");
+			Console.WriteLine(bigInt1 + " ^ " + bigInt2 + " = ");
+			Console.WriteLine(bigInt3.ToString());
+		}
+	}

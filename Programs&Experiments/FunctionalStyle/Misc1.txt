@@ -1,0 +1,5 @@
+			Func<object, Func<object>> saveObjectInFunction = obj => () => obj;
+
+			Func<object> getSavedInFunctionObject = saveObjectInFunction("string to save");
+
+			Console.WriteLine(getSavedInFunctionObject());

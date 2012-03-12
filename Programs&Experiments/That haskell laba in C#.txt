@@ -1,0 +1,34 @@
+			#region function in style ala haskell
+			Func<List<int>, int, bool> func = null;
+			func = delegate(List<int> llist, int number)
+			{
+				if (llist == null || llist.Count == 0 || number < 0)
+				{
+					return false;
+				}
+
+				if (number == 0)
+				{
+					return true;
+				}
+
+				return llist.Any(i => func(llist, number - i));
+			};
+			
+			// another way :-)
+			func = (List<int> llist, int number) =>
+				llist == null || llist.Count == 0 || number < 0 ? false :
+					number == 0 ? true :
+						llist.Any(i => func(llist, number - i));
+
+			#endregion
+
+			List<int> list = new List<int>(new int[] { 4, 5});
+			Console.Write("List : ");
+			list.ForEach(x => Console.Write(x + " "));
+			Console.WriteLine();
+
+			for (int i = 0; i < 121; i++)
+			{
+				Console.WriteLine("i = " + i + " result: " + func(list, i));
+			}

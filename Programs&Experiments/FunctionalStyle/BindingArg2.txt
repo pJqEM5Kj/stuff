@@ -1,0 +1,40 @@
+			Func<IEnumerable<object>, object> func = (IEnumerable<object> argss) =>
+			{
+				List<object> argsList = new List<object>(argss);
+
+				return ((int)argsList[0] * (int)argsList[1]).ToString() + (string)argsList[2];
+			};
+			Console.WriteLine((string)func(new object[] { 3, 4, " hello" }));
+			
+			
+			
+			Func<Func<IEnumerable<object>, object>, int, object, Func<IEnumerable<object>, object>>
+				bindFunc = (Func<IEnumerable<object>, object> bindedFunc, int bindArgN, object bindArg) =>
+					{
+						return new Func<IEnumerable<object>, object>(delegate(IEnumerable<object> qwer)
+							{
+								List<object> list = new List<object>(qwer);
+								list.Insert(bindArgN, bindArg);
+
+								return bindedFunc(list);
+							});
+					};
+
+
+			Func<IEnumerable<object>, object> binded = bindFunc(func, 0, 5);
+
+			Console.WriteLine(binded(new object[] {6, " jer"}));
+
+
+
+
+			Func<IEnumerable<object>, object> binded2 = bindFunc(binded, 0, 6);
+
+			Console.WriteLine(binded2(new object[] { " jer2" }));
+
+
+	
+			
+			Func<IEnumerable<object>, object> binded3 = bindFunc(binded2, 0, " qwerqwer");
+
+			Console.WriteLine(binded3(new object[] {}));

@@ -1,0 +1,38 @@
+public class DisposeExample
+{
+    public class MyResource: IDisposable
+    {
+        private bool disposed = false;
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+		    //if we have base class call it dispose method
+		    //base.Dispose(disposing);
+			
+            if (disposed)
+			{
+				return;
+			}
+			
+            if(disposing)
+            {
+				// managed objects
+            }
+             
+			// unmanaged objects and resources
+
+			disposed = true;         
+        }
+
+        ~MyResource()      
+        {
+            Dispose(false);
+        }
+    }
+}

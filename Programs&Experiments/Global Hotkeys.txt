@@ -1,0 +1,28 @@
+Использовать глобальные хотки:
+
+public class MainForm : System.Windows.Forms.Form
+{
+        [DllImport("user32.dll")]
+        public static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vk);
+        
+        public MainForm()
+        {
+            InitializeComponent();
+            RegisterHotKey(Handle, 1 /* command */, 6 /* ctrl + shift */, (int)Keys.Q); 
+        }
+        
+        protected override void WndProc(ref System.Windows.Forms.Message m) 
+        { 
+            if (m.Msg == 0x0312) // hot key message
+            {
+                HotKey((int)m.WParam); // wparam has code assigned in register hot key
+            }
+            base.WndProc(ref m); 
+        } 
+
+        private void HotKey(int cmd)
+        {
+            if (cmd == 1)
+              DoSomething(); // will be called when ctrl-shift-q is pressed
+        }
+}

@@ -1,0 +1,93 @@
+	class RWLock
+	{
+		private int Readers = 0;
+		private int WritersQueueLength = 0;
+
+		private const int LockedState = 1;
+		private const int FreeState = 0;
+		private int State = FreeState;
+
+
+		public void ReadLock()
+		{
+			while (true)
+			{
+				Lock();
+
+				if (WritersQueueLength == 0)
+				{
+					Readers++;
+					Release();
+					return;
+				}
+
+				Release();
+			}
+		}
+
+		public void ReadUnlock()
+		{
+			Lock();
+			Readers--;
+			Release();
+		}
+
+
+		public void WriteLock()
+		{
+			bool incWritersQueueLength = true;
+
+			while (true)
+			{
+				Lock();
+
+				if (incWritersQueueLength)
+				{
+					WritersQueueLength++;
+					incWritersQueueLength = false;
+				}
+
+				if (Readers == 0)
+				{
+					WritersQueueLength--;
+					return;
+				}
+
+				Release();
+			}
+		}
+
+		public void WriteUnlock()
+		{
+			Release();
+		}
+
+
+		private void Lock()
+		{
+			int previousState;
+			while (true)
+			{
+				previousState = Interlocked.CompareExchange(ref State, LockedState, FreeState);
+
+				if (previousState == FreeState)
+				{
+					return;
+				}
+			}
+		}
+
+		private void Release()
+		{
+			int previousState;
+			while (true)
+			{
+				previousState = Interlocked.CompareExchange(ref State, FreeState, LockedState);
+
+				if (previousState == LockedState)
+				{
+					return;
+				}
+			}
+		}
+	}

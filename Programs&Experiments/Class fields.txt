@@ -1,0 +1,11 @@
+		//----VARIABLES----
+		//----internal variables----
+		//----Properties----
+
+		//----EVENTS----
+
+		//----CONSTRUCTORS----
+		
+		//----INTERFACE-----
+		//----IMPLEMENTATION----
+		//----NESTED----

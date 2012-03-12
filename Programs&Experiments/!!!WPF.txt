@@ -1,0 +1,41 @@
+Window childs:
+
+ - Canvas: Child controls provide their own layout.
+
+ - DockPanel: Child controls are aligned to the edges of the panel.
+
+ - Grid: Child controls are positioned by rows and columns.
+
+ - StackPanel: Child controls are stacked either vertically or horizontally.
+
+ - VirtualizingStackPanel: Child controls are virtualized and arranged on a single line that is either horizontally or vertically oriented.
+
+ - WrapPanel: Child controls are positioned in left-to-right order and wrapped to the next line when there are more controls on the current line than space allows.
+
+
+//--------------------------------
+The built-in WPF controls:
+
+ - Buttons: Button and RepeatButton.
+
+ - Dialog Boxes: OpenFileDialog, PrintDialog, and SaveFileDialog.
+
+ - Digital Ink: InkCanvas and InkPresenter.
+
+ - Documents: DocumentViewer, FlowDocumentPageViewer, FlowDocumentReader, FlowDocumentScrollViewer, and StickyNoteControl.
+
+ - Input: TextBox, RichTextBox, and PasswordBox.
+
+ - Layout: Border, BulletDecorator, Canvas, DockPanel, Expander, Grid, GridView, GridSplitter, GroupBox, Panel, ResizeGrip, Separator, ScrollBar, ScrollViewer, StackPanel, Thumb, Viewbox, VirtualizingStackPanel, Window, and WrapPanel.
+
+ - Media: Image, MediaElement, and SoundPlayerAction.
+
+ - Menus: ContextMenu, Menu, and ToolBar.
+
+ - Navigation: Frame, Hyperlink, Page, NavigationWindow, and TabControl.
+
+ - Selection: CheckBox, ComboBox, ListBox, TreeView, and RadioButton, Slider.
+
+ - User Information: AccessText, Label, Popup, ProgressBar, StatusBar, TextBlock, and ToolTip.
+
+

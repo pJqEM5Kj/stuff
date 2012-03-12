@@ -1,0 +1,24 @@
+	class Program
+	{
+		static void Main(string[] args)
+		{
+			Action action = (Action)Delegate.CreateDelegate(typeof(Action), new A(), "method");
+			action();
+
+			action = (Action)Delegate.CreateDelegate(typeof(Action), typeof(A), "method2");
+			action();
+		}
+	}
+
+	class A
+	{
+		private void method()
+		{
+			Console.WriteLine("Poh na access rights.");
+		}
+
+		private static void method2()
+		{
+			Console.WriteLine("Poh na static access rights.");
+		}
+	}

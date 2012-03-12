@@ -1,0 +1,13 @@
+        FileStream inStream = new FileStream(sourceFile, FileMode.Open);
+		FileStream outStream = new FileStream(destFile, FileMode.Create);
+
+		byte[] buffer = new byte[1024]; 
+        
+		do
+		{
+			bytesRead = inStream.Read(buffer,0,1024); 
+			outStream.Write(buffer, 0, bytesRead);
+		} while (bytesRead > 0); 
+
+		inStream.Close();
+		outStream.Close();

@@ -1,0 +1,20 @@
+			Func<Func<int, int>, Func<int, int>, Func<int, int>>
+				highFunc = (Func<int, int> f1, Func<int, int> f2) =>
+					{
+						Func<int, int> result = x => f1(x) + f2(x);
+						return result;
+					};
+
+			Console.WriteLine(highFunc(n => n + 10, x => x + 2)(4));
+
+			Console.WriteLine();
+
+			Func<Func<int, int>, Func<int, int>, Func<int, int, int>, Func<int, int>>
+				highFunc2 = (Func<int, int> f1, Func<int, int> f2, Func<int, int, int> f3) =>
+				{
+					return x => f3(f1(x), f2(x));
+				};
+
+			Console.WriteLine(
+				highFunc2(x1 => x1 + 10, x2 => x2 + 2, (a, b) => a * b)(4)
+				);
