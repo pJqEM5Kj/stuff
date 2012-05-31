@@ -5,11 +5,10 @@ using System.Text;
 
 namespace PockerStatistic
 {
-    public enum CardSuit
+    enum PlayerHandResult
     {
-        Spades,
-        Hearts,
-        Diamonds,
-        Clubs,
+        PlayerWin,
+        Draw,
+        PlayerLose,
     }
 }

@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace ConsoleApplication1
+namespace PockerStatistic
 {
     interface IHand: IComparable<IHand>
     {
-        double Value { get; }
-        ICard[] Kickers { get; }
+        HandType HandType { get; }
+        int Value { get; }
+        Card[] Kickers { get; }
+        double Card5ProbabilityPercent { get; }
+        double Card7ProbabilityPercent { get; }
     }
 }

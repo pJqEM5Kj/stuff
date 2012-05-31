@@ -5,11 +5,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace ConsoleApplication1
+namespace WpfApplication1
 {
     static class Utility
     {
-        private static int BufferSize = 4096;
+        //private static int BufferSize = 4096;
 
 
         public static string FormatStr(this string s, params object[] args)
@@ -54,14 +54,6 @@ namespace ConsoleApplication1
             return !collection.Any();
         }
 
-        public static void EnsureNotNull(this object obj)
-        {
-            if (obj == null)
-            {
-                throw new ArgumentNullException();
-            }
-        }
-
         public static void CopyStream(Stream input, Stream output, int bufferSize = 4096)
         {
             ReadStream(input,
@@ -88,6 +80,18 @@ namespace ConsoleApplication1
             {
                 onRead(buffer, bytesRead);
             }
+        }
+
+        public static Exception GetUnknownEnumValueException<T>(T enumValue)
+        {
+            Type type = typeof(T);
+
+            if (!type.IsEnum)
+            {
+                throw new ArgumentException();
+            }
+
+            return new InvalidOperationException("Enum value '{0}' is unknown.".FormatStr(enumValue));
         }
     }
 }

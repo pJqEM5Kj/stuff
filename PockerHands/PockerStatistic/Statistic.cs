@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace ConsoleApplication1
+namespace PockerStatistic
 {
     public class Statistic
     {
@@ -11,5 +11,15 @@ namespace ConsoleApplication1
         public int Draw;
         public int Lose;
         public int GameNumber;
+        public HandStatistic[] PlayerHandsStat;
+        public HandStatistic[] EnemyHandsStat;
+
+        public struct HandStatistic
+        {
+            public HandType HandType;
+            public int Win;
+            public int Lose;
+            public int Draw;
+        }
     }
 }
