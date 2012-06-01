@@ -250,8 +250,6 @@
                 <CheckBox Name="watchKeys_ckb" Grid.Row="0" Content="Watch keys" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="5" IsTabStop="False" Focusable="False" />
             </StackPanel>
 
-            <Button Name="buildStat_btn" Grid.Row="0" Visibility="Collapsed" Content="Build statistic" Width="100" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,5,0"  IsTabStop="False" Focusable="False" />
-
             <Grid Grid.Row="1">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
                     <Grid Margin="0,12,0,0">

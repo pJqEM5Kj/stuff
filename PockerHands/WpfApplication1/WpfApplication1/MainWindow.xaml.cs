@@ -89,8 +89,6 @@ namespace WpfApplication1
 
             cards_tb.TextChanged += cards_tb_TextChanged;
 
-            buildStat_btn.Click += buildStat_btn_Click;
-
             Loaded += MainWindow_Loaded;
             Deactivated += MainWindow_Deactivated;
             KeyDown += MainWindow_KeyDown;
@@ -109,33 +107,6 @@ namespace WpfApplication1
         private void MainWindow_Closed(object sender, EventArgs e)
         {
             InterceptKeys.RemoveHook();
-        }
-
-        private void buildStat_btn_Click(object sender, RoutedEventArgs e)
-        {
-            buildStat_btn.IsEnabled = false;
-
-            Task.Factory.StartNew(
-                () =>
-                {
-                    BuildStatistic();
-                })
-                .ContinueWith(
-                    t =>
-                    {
-                        if (t.IsFaulted)
-                        {
-                            Exception ex = t.Exception;
-                            MessageBox.Show("Build statistic faulted: " + ex.ToString());
-                        }
-
-                        Dispatcher.BeginInvoke(
-                            new Action(
-                                () =>
-                                {
-                                    buildStat_btn.IsEnabled = true;
-                                }));
-                    });
         }
 
         private void cards_tb_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -248,7 +219,7 @@ namespace WpfApplication1
 
             CardImages = BuildCardImages();
 
-            cards_tb.Text = string.Join(string.Empty, GetRandomHand().Select(x => ConvertToString(x)));
+            cards_tb.Text = string.Join(string.Empty, GetRandomHand().Select(x => CardUtils.ConvertToString(x)));
 
             StartMonitorLogFile();
 
@@ -446,7 +417,7 @@ namespace WpfApplication1
 
         private void RandomCards()
         {
-            cards_tb.Text = string.Join(string.Empty, GetRandomHand().Select(x => ConvertToString(x)));
+            cards_tb.Text = string.Join(string.Empty, GetRandomHand().Select(x => CardUtils.ConvertToString(x)));
         }
 
         private bool IsWatchCards()
@@ -701,7 +672,7 @@ namespace WpfApplication1
                 return;
             }
 
-            string str = ConvertToString(c2) + ConvertToString(c1);
+            string str = CardUtils.ConvertToString(c2) + CardUtils.ConvertToString(c1);
 
             Action exec =
                 () =>
@@ -733,147 +704,13 @@ namespace WpfApplication1
 
         private bool IsEquals(Card[] cards1, Card[] cards2)
         {
-            List<string> l1 = cards1.Select(x => ConvertToString(x)).ToList();
+            List<string> l1 = cards1.Select(x => CardUtils.ConvertToString(x)).ToList();
             l1.Sort();
 
-            List<string> l2 = cards2.Select(x => ConvertToString(x)).ToList();
+            List<string> l2 = cards2.Select(x => CardUtils.ConvertToString(x)).ToList();
             l2.Sort();
 
             return l1.SequenceEqual(l2);
-        }
-
-        private void BuildStatistic()
-        {
-            int gameCount = 10000;
-            int parallellLevel = 2;
-            int maxEnemyCount = 5;
-
-            Dispatcher.Invoke(new Action(
-                () =>
-                {
-                    gameCount = int.Parse(simulatedGamesCount_tb.Text);
-                    parallellLevel = int.Parse(parallelismLevel_tb.Text);
-                    maxEnemyCount = int.Parse(enemyPlayerCount_tb.Text);
-                }));
-
-            string file_name_pattern = @"D:\2cards_vs_enemy_{0}.txt";
-            string file_name_pattern2 = @"D:\2cards_vs_enemy_{0}_rel.txt";
-
-            CardValue[] card_values = Enum.GetValues(typeof(CardValue)).OfType<CardValue>().ToArray();
-
-            Func<Card, Card, int, int, int, double> func =
-                (Card card1, Card card2, int gameNumber, int parallelLevel, int enemyCount) =>
-                {
-                    var parameters = new ExperimentParameters();
-
-                    parameters.PlayerCard1 = card1;
-                    parameters.PlayerCard2 = card2;
-
-                    parameters.GameNumber = gameNumber;
-                    parameters.ParallelLevel = parallelLevel;
-                    parameters.EnemyPlayersCount = enemyCount;
-
-                    var psc = new PockerStatisticCalc();
-                    Statistic stat = psc.RunExperiment(parameters);
-                    return Math.Round(stat.Win * 100d / stat.GameNumber, 2);
-                };
-
-            for (int enemy = 1; enemy <= maxEnemyCount; enemy++)
-            {
-                double min = int.MaxValue;
-                double max = int.MinValue;
-
-                var table = new List<KeyValuePair<CardValue, List<Tuple<CardValue, double, double>>>>();
-
-                for (int i = 0; i < card_values.Length; i++)
-                {
-                    var line = new List<Tuple<CardValue, double, double>>();
-
-                    for (int j = 0; j < card_values.Length; j++)
-                    {
-                        double d1 = func(
-                            new Card(CardSuit.Clubs, card_values[i]),
-                            new Card(CardSuit.Hearts, card_values[j]),
-                            gameCount,
-                            parallellLevel,
-                            enemy);
-
-                        min = Math.Min(min, d1);
-                        max = Math.Max(max, d1);
-
-                        double d2 = -1;
-                        if (i != j)
-                        {
-                            d2 = func(
-                                new Card(CardSuit.Clubs, card_values[i]),
-                                new Card(CardSuit.Clubs, card_values[j]),
-                                gameCount,
-                                parallellLevel,
-                                enemy);
-
-                            min = Math.Min(min, d2);
-                            max = Math.Max(max, d2);
-                        }
-
-                        line.Add(Tuple.Create(card_values[j], d1, d2));
-                    }
-
-                    table.Add(new KeyValuePair<CardValue, List<Tuple<CardValue, double, double>>>(card_values[i], line));
-                }
-
-                var make_rel = new Func<double, double, double, double>(
-                    (double mmin, double mmax, double val) =>
-                    {
-                        double range = mmax - mmin;
-                        double d1 = (val - mmin) / range; // [0;1]
-                        return d1;
-                        //double rel = mmax / mmin;
-                        //return 1 + d1 * rel;
-                    });
-
-                var lines = new List<List<string>>();
-                var lines2 = new List<List<string>>();
-                foreach (var item in table)
-                {
-                    var nodes = new List<string>();
-                    var nodes2 = new List<string>();
-                    foreach (var item2 in item.Value)
-                    {
-                        nodes.Add("{0}{1} - {2} ({3})".FormatStr(
-                            ConvertToString(item.Key),
-                            ConvertToString(item2.Item1),
-                            item2.Item2,
-                            (item2.Item3 == -1 ? "-" : item2.Item3.ToString())));
-
-                        nodes2.Add("{0}{1} - {2:0.####} ({3})".FormatStr(
-                            ConvertToString(item.Key),
-                            ConvertToString(item2.Item1),
-                            make_rel(min, max, item2.Item2),
-                            (item2.Item3 == -1 ? "-" : make_rel(min, max, item2.Item3).ToString("0.####"))));
-                    }
-
-                    lines.Add(nodes);
-                    lines2.Add(nodes2);
-                }
-
-                int maxLength = lines.Select(x => x.Max(y => y.Length)).Max();
-                int maxLength2 = lines2.Select(x => x.Max(y => y.Length)).Max();
-
-                for (int i = 0; i < lines.Count; i++)
-                {
-                    for (int j = 0; j < lines[i].Count; j++)
-                    {
-                        lines[i][j] = lines[i][j].PadRight(maxLength);
-                        lines2[i][j] = lines2[i][j].PadRight(maxLength2);
-                    }
-                }
-
-                string s = string.Join(Environment.NewLine, lines.Select(l => string.Join(" | ", l)));
-                File.WriteAllText(file_name_pattern.FormatStr(enemy), s);
-
-                string s2 = string.Join(Environment.NewLine, lines2.Select(l => string.Join(" | ", l)));
-                File.WriteAllText(file_name_pattern2.FormatStr(enemy), s2);
-            }
         }
 
         private void SimulationStartedShow()
@@ -1246,7 +1083,7 @@ namespace WpfApplication1
 
             for (int i = 0; i < count; i += 2)
             {
-                cards.Add(ParseCard(s, i));
+                cards.Add(CardUtils.ParseCard(s, i));
             }
 
             return cards.ToArray();
@@ -1381,146 +1218,12 @@ namespace WpfApplication1
             }
         }
 
-        private string ConvertToString(Card card)
-        {
-            Code.RequireNotNull(card);
-            Code.Require(card.IsValid);
-            return ConvertToString(card.Value) + ConvertToString(card.Suit);
-        }
-
-        private string ConvertToString(CardValue cardValue)
-        {
-            switch (cardValue)
-            {
-                case CardValue._2:
-                    return "2";
-                case CardValue._3:
-                    return "3";
-                case CardValue._4:
-                    return "4";
-                case CardValue._5:
-                    return "5";
-                case CardValue._6:
-                    return "6";
-                case CardValue._7:
-                    return "7";
-                case CardValue._8:
-                    return "8";
-                case CardValue._9:
-                    return "9";
-                case CardValue._10:
-                    return "t";
-                case CardValue._Jack:
-                    return "j";
-                case CardValue._Queen:
-                    return "q";
-                case CardValue._King:
-                    return "k";
-                case CardValue._Ace:
-                    return "a";
-            }
-
-            throw Utility.GetUnknownEnumValueException(cardValue);
-        }
-
-        private string ConvertToString(CardSuit cardSuit)
-        {
-            switch (cardSuit)
-            {
-                case CardSuit.Spades:
-                    return "s";
-                case CardSuit.Hearts:
-                    return "h";
-                case CardSuit.Diamonds:
-                    return "d";
-                case CardSuit.Clubs:
-                    return "c";
-            }
-
-            throw Utility.GetUnknownEnumValueException(cardSuit);
-        }
-
-        private Card ParseCard(string s, int indx = 0)
-        {
-            char value = char.ToLower(s[indx]);
-            char suit = char.ToLower(s[indx + 1]);
-
-            CardSuit cardSuit = ParseSuit(suit);
-
-            CardValue cardValue;
-            switch (value)
-            {
-                case 'a':
-                    cardValue = CardValue._Ace;
-                    break;
-                case 'k':
-                    cardValue = CardValue._King;
-                    break;
-                case 'q':
-                    cardValue = CardValue._Queen;
-                    break;
-                case 'j':
-                    cardValue = CardValue._Jack;
-                    break;
-                case 't':
-                    cardValue = CardValue._10;
-                    break;
-                case '9':
-                    cardValue = CardValue._9;
-                    break;
-                case '8':
-                    cardValue = CardValue._8;
-                    break;
-                case '7':
-                    cardValue = CardValue._7;
-                    break;
-                case '6':
-                    cardValue = CardValue._6;
-                    break;
-                case '5':
-                    cardValue = CardValue._5;
-                    break;
-                case '4':
-                    cardValue = CardValue._4;
-                    break;
-                case '3':
-                    cardValue = CardValue._3;
-                    break;
-                case '2':
-                    cardValue = CardValue._2;
-                    break;
-                default:
-                    throw Utility.GetUnknownEnumValueException(value);
-            }
-
-            return new Card(cardSuit, cardValue);
-        }
-
-        private CardSuit ParseSuit(char c)
-        {
-            char suit = char.ToLower(c);
-
-            switch (suit)
-            {
-                case 'c':
-                    return CardSuit.Clubs;
-                case 'd':
-                    return CardSuit.Diamonds;
-                case 'h':
-                    return CardSuit.Hearts;
-                case 's':
-                    return CardSuit.Spades;
-            }
-
-            throw Utility.GetUnknownEnumValueException(suit);
-        }
-
         private Card ParseCardSpecial(string s)
         {
             string value = new string(s.Take(s.Length - 1).ToArray());
             char suit = s[s.Length - 1];
 
-            CardSuit cardSuit = ParseSuit(suit);
+            CardSuit cardSuit = CardUtils.ParseSuit(suit);
 
             CardValue cardValue;
             switch (value)
