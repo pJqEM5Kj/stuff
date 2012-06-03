@@ -240,9 +240,9 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Focusable="False">
-                <Label Name="appVersion_lbl" Margin="5" IsTabStop="False" Focusable="False" />
-                <Label Name="libVersion_lbl" Margin="5" IsTabStop="False" Focusable="False" />
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Focusable="False">
+                <Label Name="appVersion_lbl" Margin="0" Padding="2" IsTabStop="False" Focusable="False" HorizontalAlignment="Right" />
+                <Label Name="libVersion_lbl" Margin="0" Padding="2" IsTabStop="False" Focusable="False" HorizontalAlignment="Right" />
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
