@@ -56,7 +56,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="InterceptKeys.cs" />
+    <Compile Include="KeyInterceptor.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="RenderWaiting.xaml.cs">
       <DependentUpon>RenderWaiting.xaml</DependentUpon>

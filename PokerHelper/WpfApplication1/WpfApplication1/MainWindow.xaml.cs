@@ -58,6 +58,7 @@ namespace WpfApplication1
 
         private readonly Logger Logger = new Logger();
 
+        private KeyInterceptor keyHooker;
         private System.Timers.Timer enemyPlayerCount_tb_TextChanged_Timer;
         private Dictionary<Card, BitmapImage> CardImages;
         private Random rnd = new Random(Guid.NewGuid().GetHashCode());
@@ -109,12 +110,12 @@ namespace WpfApplication1
 
         private void Dispatcher_UnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
-            InterceptKeys.RemoveHook();
+            DisposeKeyHooker();
         }
 
         private void MainWindow_Closed(object sender, EventArgs e)
         {
-            InterceptKeys.RemoveHook();
+            DisposeKeyHooker();
         }
 
         private void cards_tb_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -235,7 +236,8 @@ namespace WpfApplication1
             StartMonitorLogFile();
             StartMonitorClipboard();
 
-            InterceptKeys.SetHook(KeyboardHook);
+            keyHooker = new KeyInterceptor();
+            keyHooker.SetHook(KeyboardHook);
         }
 
         private void KeyboardHook(int key)
@@ -371,6 +373,17 @@ namespace WpfApplication1
         private void topMost_ckb_Checked(object sender, RoutedEventArgs e)
         {
             Topmost = true;
+        }
+
+        private void DisposeKeyHooker()
+        {
+            if (keyHooker == null)
+            {
+                return;
+            }
+
+            keyHooker.RemoveHook();
+            keyHooker = null;
         }
 
         private void RandomCards()
