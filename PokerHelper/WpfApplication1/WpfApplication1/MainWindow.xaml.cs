@@ -27,13 +27,20 @@ namespace WpfApplication1
     public partial class MainWindow : Window
     {
         //@!mov todo:
-        // save all settings when application closed and restore them on startup
+        // deep refactor
 
         private const int ActivationTimeout = 50; //ms
         private const int enemyPlayerCount_tb_SelectTime = 300; //ms
         private const int DefaultSimulatedGameCount = 50000;
         private const int DefaultEnemyPlayersCount = 1;
         private const int DefaultTimeLimit = 1700; //ms
+        private const int ClipboardMonitorSleep = 100; //ms
+        private const int FileMonitorSleep = 500; //ms
+        private const int ProgressWatcherSleep = 100; //ms
+        private const string AppVersionFormatString = "app v{0}";
+        private const string LibVersionFormatString = "lib v{0}";
+        private const char ExternalInput_StartSimulation = 'q';
+        private const char ExternalInput_StopSimulation = 'w';
         private const string LogFilePath = @"C:\Program Files\PokerStars\PokerStars.log.0";
 
         private Dictionary<int, Tuple<double, double>> HoleCardsStatistic = new Dictionary<int, Tuple<double, double>>()
@@ -57,7 +64,7 @@ namespace WpfApplication1
         private Control lastFocusedElement;
         private bool ignore_cards_tb_TextChanged = false;
 
-        private FileSystemWatcher FsWatcher;
+        private long logFileSize;
         private string clipboardTxt;
 
         private bool Calculating;
@@ -179,6 +186,7 @@ namespace WpfApplication1
                 return;
             }
             ignore_cards_tb_TextChanged = true;
+
             string ss = null;
             int caretIndx = cards_tb.CaretIndex;
             for (int i = 0; i < cards_tb.Text.Length; i++)
@@ -225,7 +233,6 @@ namespace WpfApplication1
             cards_tb.Text = string.Join(string.Empty, GetRandomHand().Select(x => CardUtils.ConvertToString(x)));
 
             StartMonitorLogFile();
-
             StartMonitorClipboard();
 
             InterceptKeys.SetHook(KeyboardHook);
@@ -278,68 +285,16 @@ namespace WpfApplication1
                 return;
             }
 
-            if (ch == 'q')
+            if (ch == ExternalInput_StartSimulation)
             {
                 StartSimulation();
                 return;
             }
 
-            if (ch == 'w')
+            if (ch == ExternalInput_StopSimulation)
             {
                 CancelTokenSource.Cancel();
                 return;
-            }
-        }
-
-        private void FsWatcher_Changed(object sender, FileSystemEventArgs e)
-        {
-            if (!string.Equals(e.FullPath, LogFilePath, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
-            if (!IsWatchCards())
-            {
-                return;
-            }
-
-            if (!File.Exists(LogFilePath))
-            {
-                return;
-            }
-
-            string str = null;
-            try
-            {
-                using (var fs = File.Open(LogFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (var sr = new StreamReader(fs))
-                {
-                    str = sr.ReadToEnd();
-                }
-                //str = File.ReadAllText(LogFilePath);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-            }
-
-            try
-            {
-                Tuple<Card, Card> cards = ParseLast2CardsFromLogFile(str);
-                if (cards == null || cards.Item1 == null || cards.Item2 == null)
-                {
-                    return;
-                }
-
-                Dispatcher.Invoke(new Action(
-                    () =>
-                    {
-                        ProcessParsedFromLogFileCards(cards.Item1, cards.Item2);
-                    }));
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
             }
         }
 
@@ -459,31 +414,13 @@ namespace WpfApplication1
             return f();
         }
 
-        //----------------------------------------------------------------
-
         private void SetVersions()
         {
             Version applicationVersion = Assembly.GetExecutingAssembly().GetName().Version;
             Version coreLibVersion = Assembly.GetAssembly(typeof(PokerHelper.PokerStatisticCalc)).GetName().Version;
 
-            appVersion_lbl.Content = "app v{0}".FormatStr(applicationVersion.ToString());
-            libVersion_lbl.Content = "lib v{0}".FormatStr(coreLibVersion.ToString());
-        }
-
-        private bool StartMonitorLogFile()
-        {
-            string logFileDir = System.IO.Path.GetDirectoryName(LogFilePath);
-
-            if (!Directory.Exists(logFileDir))
-            {
-                return false;
-            }
-
-            FsWatcher = new FileSystemWatcher(logFileDir);
-            FsWatcher.Changed += FsWatcher_Changed;
-            FsWatcher.EnableRaisingEvents = true;
-
-            return true;
+            appVersion_lbl.Content = AppVersionFormatString.FormatStr(applicationVersion.ToString());
+            libVersion_lbl.Content = LibVersionFormatString.FormatStr(coreLibVersion.ToString());
         }
 
         private void StartMonitorClipboard()
@@ -493,7 +430,8 @@ namespace WpfApplication1
                 {
                     while (true)
                     {
-                        Thread.Sleep(100);
+                        Thread.Sleep(ClipboardMonitorSleep);
+
                         try
                         {
                             ClipboardMonitor();
@@ -521,7 +459,7 @@ namespace WpfApplication1
                 {
                     s = Clipboard.GetText();
                 }));
-            
+
             if (s == clipboardTxt)
             {
                 return;
@@ -603,6 +541,94 @@ namespace WpfApplication1
             }
         }
 
+        private void StartMonitorLogFile()
+        {
+            Task.Factory.StartNew(LogFileMonitor);
+        }
+
+        private void LogFileMonitor()
+        {
+            while (true)
+            {
+                try
+                {
+                    var fi = new FileInfo(LogFilePath);
+                    if (fi.Exists)
+                    {
+                        if (fi.Length != logFileSize)
+                        {
+                            logFileSize = fi.Length;
+
+                            Task.Factory.StartNew(
+                                () =>
+                                {
+                                    try
+                                    {
+                                        LogFile_Changed();
+                                    }
+                                    catch (Exception ex2)
+                                    {
+                                        Logger.LogException(ex2, "LogFile_Changed handler failed.");
+                                    }
+                                });
+                        }
+                    }
+
+                    Thread.Sleep(FileMonitorSleep);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogException(ex, "Log file processing failed.");
+                }
+            }
+        }
+
+        private void LogFile_Changed()
+        {
+            if (!IsWatchCards())
+            {
+                return;
+            }
+
+            if (!File.Exists(LogFilePath))
+            {
+                return;
+            }
+
+            string str = null;
+            try
+            {
+                using (var fs = File.Open(LogFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sr = new StreamReader(fs))
+                {
+                    str = sr.ReadToEnd();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+
+            try
+            {
+                Tuple<Card, Card> cards = ParseLast2CardsFromLogFile(str);
+                if (cards == null || cards.Item1 == null || cards.Item2 == null)
+                {
+                    return;
+                }
+
+                Dispatcher.Invoke(new Action(
+                    () =>
+                    {
+                        ProcessParsedFromLogFileCards(cards.Item1, cards.Item2);
+                    }));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+        }
+
         private Tuple<Card, Card> ParseLast2CardsFromLogFile(string s)
         {
             if (string.IsNullOrEmpty(s))
@@ -612,10 +638,10 @@ namespace WpfApplication1
 
             var l = new List<int>();
 
-            for(int i = s.Length - 1; i >= 2; i--)
+            for (int i = s.Length - 1; i >= 2; i--)
             {
                 char c = s[i];
-                if (s[i] == ':' && s[i-1] == ':' && s[i-2] == ':')
+                if (s[i] == ':' && s[i - 1] == ':' && s[i - 2] == ':')
                 {
                     l.Add(i);
 
@@ -953,12 +979,11 @@ namespace WpfApplication1
             CalculationTask.ContinueWith(
                 (Task ancestor) =>
                 {
-                    Dispatcher.Invoke(
-                        new Action(
-                            () =>
-                            {
-                                SimulationFinished(ancestor.Exception, ancestor.IsCanceled, stat, calcTime);
-                            }));
+                    Dispatcher.Invoke(new Action(
+                        () =>
+                        {
+                            SimulationFinished(ancestor.Exception, ancestor.IsCanceled, stat, calcTime);
+                        }));
                 });
 
             Task.Factory.StartNew(
@@ -966,7 +991,7 @@ namespace WpfApplication1
                 {
                     while (!CalculationTask.IsCompleted)
                     {
-                        Thread.Sleep(270);
+                        Thread.Sleep(ProgressWatcherSleep);
 
                         ExperimentParameters expParams = ExpParams;
                         if (expParams == null)
