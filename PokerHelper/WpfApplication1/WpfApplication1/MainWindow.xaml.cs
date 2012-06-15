@@ -35,12 +35,13 @@ namespace WpfApplication1
         private const int DefaultEnemyPlayersCount = 1;
         private const int DefaultTimeLimit = 1700; //ms
         private const int ClipboardMonitorSleep = 100; //ms
-        private const int FileMonitorSleep = 500; //ms
+        private const int FileMonitorSleep = 600; //ms
         private const int ProgressWatcherSleep = 100; //ms
         private const string AppVersionFormatString = "app v{0}";
         private const string LibVersionFormatString = "lib v{0}";
         private const char ExternalInput_StartSimulation = 'q';
         private const char ExternalInput_StopSimulation = 'w';
+        private const char ExternalInput_GetCardsFromLogFile = 'a';
         private const string LogFilePath = @"C:\Program Files\PokerStars\PokerStars.log.0";
 
         private Dictionary<int, Tuple<double, double>> HoleCardsStatistic = new Dictionary<int, Tuple<double, double>>()
@@ -296,6 +297,24 @@ namespace WpfApplication1
             if (ch == ExternalInput_StopSimulation)
             {
                 CancelTokenSource.Cancel();
+                return;
+            }
+
+            if (ch == ExternalInput_GetCardsFromLogFile)
+            {
+                Task.Factory.StartNew(
+                    () =>
+                    {
+                        try
+                        {
+                            LogFile_Changed();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogException(ex, "Get cards on request failed.");
+                        }
+                    });
+
                 return;
             }
         }
@@ -565,29 +584,38 @@ namespace WpfApplication1
             {
                 try
                 {
-                    var fi = new FileInfo(LogFilePath);
-                    if (fi.Exists)
-                    {
-                        if (fi.Length != logFileSize)
-                        {
-                            logFileSize = fi.Length;
+                    Thread.Sleep(FileMonitorSleep);
 
-                            Task.Factory.StartNew(
-                                () =>
-                                {
-                                    try
-                                    {
-                                        LogFile_Changed();
-                                    }
-                                    catch (Exception ex2)
-                                    {
-                                        Logger.LogException(ex2, "LogFile_Changed handler failed.");
-                                    }
-                                });
-                        }
+                    if (!IsWatchCards())
+                    {
+                        continue;
                     }
 
-                    Thread.Sleep(FileMonitorSleep);
+                    var fi = new FileInfo(LogFilePath);
+                    if (!fi.Exists)
+                    {
+                        continue;
+                    }
+
+                    if (fi.Length != logFileSize)
+                    {
+                        continue;
+                    }
+
+                    logFileSize = fi.Length;
+
+                    Task.Factory.StartNew(
+                        () =>
+                        {
+                            try
+                            {
+                                LogFile_Changed();
+                            }
+                            catch (Exception ex2)
+                            {
+                                Logger.LogException(ex2, "LogFile_Changed handler failed.");
+                            }
+                        });
                 }
                 catch (Exception ex)
                 {
@@ -598,11 +626,6 @@ namespace WpfApplication1
 
         private void LogFile_Changed()
         {
-            if (!IsWatchCards())
-            {
-                return;
-            }
-
             if (!File.Exists(LogFilePath))
             {
                 return;

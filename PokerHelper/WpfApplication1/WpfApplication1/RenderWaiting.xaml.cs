@@ -21,6 +21,9 @@ namespace WpfApplication1
     /// </summary>
     public partial class RenderWaiting : UserControl
     {
+        private Storyboard storyboard;
+
+
         public RenderWaiting()
         {
             InitializeComponent();
@@ -29,33 +32,36 @@ namespace WpfApplication1
             IsVisibleChanged += RenderWaiting_IsVisibleChanged;
         }
 
-        private Storyboard storyboard;
         private void RenderWaiting_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (storyboard != null)
+            if (storyboard == null)
             {
-                if (IsVisible)
-                {
-                    storyboard.SetValue(Storyboard.TargetNameProperty, "animationTarget");
-                    storyboard.Begin(animationTarget);
-                }
-                else if (!IsVisible)
-                {
-                    storyboard.ClearValue(Storyboard.TargetNameProperty);
-                }
+                return;
+            }
+
+            if (IsVisible)
+            {
+                storyboard.SetValue(Storyboard.TargetNameProperty, "animationTarget");
+                storyboard.Begin(animationTarget);
+            }
+            else if (!IsVisible)
+            {
+                storyboard.ClearValue(Storyboard.TargetNameProperty);
             }
         }
 
         private void RenderWaiting_Loaded(object sender, RoutedEventArgs e)
         {
-            if (!DesignerProperties.GetIsInDesignMode(this))
+            if (DesignerProperties.GetIsInDesignMode(this))
             {
-                storyboard = Resources["storyboard"] as Storyboard;
-                if (storyboard != null)
-                {
-                    storyboard.SetValue(Storyboard.TargetNameProperty, "animationTarget");
-                    storyboard.Begin(animationTarget);
-                }
+                return;
+            }
+
+            storyboard = Resources["storyboard"] as Storyboard;
+            if (storyboard != null)
+            {
+                storyboard.SetValue(Storyboard.TargetNameProperty, "animationTarget");
+                storyboard.Begin(animationTarget);
             }
         }
     }
