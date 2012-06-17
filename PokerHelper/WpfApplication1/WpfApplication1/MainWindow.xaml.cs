@@ -586,6 +586,11 @@ namespace WpfApplication1
                 {
                     Thread.Sleep(FileMonitorSleep);
 
+                    if (Calculating)
+                    {
+                        continue;
+                    }
+
                     if (!IsWatchCards())
                     {
                         continue;
@@ -597,7 +602,7 @@ namespace WpfApplication1
                         continue;
                     }
 
-                    if (fi.Length != logFileSize)
+                    if (fi.Length == logFileSize)
                     {
                         continue;
                     }
