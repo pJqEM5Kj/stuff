@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace PokerHelper
 {
-    public class ExperimentParameters
+    public class CalculationParameters
     {
         public Card PlayerCard1;
         public Card PlayerCard2;

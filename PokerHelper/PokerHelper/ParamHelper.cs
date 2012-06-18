@@ -7,7 +7,7 @@ namespace PokerHelper
 {
     public class ParamHelper
     {
-        public static int GetParallelLevel()
+        public static int GetParallelismLevel()
         {
             return (int)Math.Round(Environment.ProcessorCount * 2.5);
         }

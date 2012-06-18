@@ -44,19 +44,6 @@ namespace WpfApplication1
         private const char ExternalInput_GetCardsFromLogFile = 'a';
         private const string LogFilePath = @"C:\Program Files\PokerStars\PokerStars.log.0";
 
-        private Dictionary<int, Tuple<double, double>> HoleCardsStatistic = new Dictionary<int, Tuple<double, double>>()
-        {
-            { 1, Tuple.Create(29.148, 84.815) },
-            { 2, Tuple.Create(18.32635, 73.20935) },
-            { 3, Tuple.Create(12.9407, 63.6387) },
-            { 4, Tuple.Create(10.05565, 55.839) },
-            { 5, Tuple.Create(8.20165, 49.1143) },
-            { 6, Tuple.Create(7.0137, 43.33665) },
-            { 7, Tuple.Create(6.205, 38.608) },
-            { 8, Tuple.Create(4.503, 34.407) },
-            { 9, Tuple.Create(4.941, 30.676) },
-        };
-
         private readonly Logger Logger = new Logger();
 
         private KeyInterceptor keyHooker;
@@ -71,7 +58,7 @@ namespace WpfApplication1
 
         private bool Calculating;
         private CancellationTokenSource CancelTokenSource;
-        private ExperimentParameters ExpParams = null;
+        private CalculationParameters ExpParams = null;
         private Task CalculationTask;
 
 
@@ -224,7 +211,7 @@ namespace WpfApplication1
 
             cards_tb.Focus();
 
-            parallelismLevel_tb.Text = ParamHelper.GetParallelLevel().ToString();
+            parallelismLevel_tb.Text = ParamHelper.GetParallelismLevel().ToString();
             simulatedGamesCount_tb.Text = DefaultSimulatedGameCount.ToString();
             enemyPlayerCount_tb.Text = DefaultEnemyPlayersCount.ToString();
             timeLimit_ckb.IsChecked = true;
@@ -1034,7 +1021,7 @@ namespace WpfApplication1
                     {
                         Thread.Sleep(ProgressWatcherSleep);
 
-                        ExperimentParameters expParams = ExpParams;
+                        CalculationParameters expParams = ExpParams;
                         if (expParams == null)
                         {
                             continue;
@@ -1078,9 +1065,9 @@ namespace WpfApplication1
             ShowStatistic(stat, calcTime);
         }
 
-        private ExperimentParameters GetParameters()
+        private CalculationParameters GetParameters()
         {
-            var param = new ExperimentParameters();
+            var param = new CalculationParameters();
 
             if (!string.IsNullOrWhiteSpace(simulatedGamesCount_tb.Text))
             {
@@ -1098,7 +1085,7 @@ namespace WpfApplication1
             }
             else
             {
-                param.ParallelLevel = ParamHelper.GetParallelLevel();
+                param.ParallelLevel = ParamHelper.GetParallelismLevel();
                 parallelismLevel_tb.Text = param.ParallelLevel.ToString();
             }
 
@@ -1179,13 +1166,13 @@ namespace WpfApplication1
             s += Environment.NewLine;
             s += "Loses:".PadRight(8) + "{0:0.####}%".FormatStr(100 * stat.Lose / (double)stat.GameNumber);
 
-            if (ExpParams.Flop1 == null && HoleCardsStatistic.ContainsKey(ExpParams.EnemyPlayersCount))
+            if (ExpParams.Flop1 == null && PokerStatisticCalc.HoleCardsStatistic.ContainsKey(ExpParams.EnemyPlayersCount))
             {
                 s += Environment.NewLine;
                 s += Environment.NewLine;
 
-                double min = HoleCardsStatistic[ExpParams.EnemyPlayersCount].Item1;
-                double max = HoleCardsStatistic[ExpParams.EnemyPlayersCount].Item2;
+                double min = PokerStatisticCalc.HoleCardsStatistic[ExpParams.EnemyPlayersCount].Item1;
+                double max = PokerStatisticCalc.HoleCardsStatistic[ExpParams.EnemyPlayersCount].Item2;
                 win_percent = Math.Max(win_percent, min);
                 win_percent = Math.Min(win_percent, max);
                 double d = 100 * (win_percent - min) / (max - min);

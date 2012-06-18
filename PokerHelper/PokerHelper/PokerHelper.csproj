@@ -44,7 +44,7 @@
     <Compile Include="CardUtils.cs" />
     <Compile Include="CardValue.cs" />
     <Compile Include="Code.cs" />
-    <Compile Include="ExperimentParameters.cs" />
+    <Compile Include="CalculationParameters.cs" />
     <Compile Include="HandHelper.cs" />
     <Compile Include="Hands.cs" />
     <Compile Include="HandType.cs" />

@@ -1,0 +1,385 @@
+﻿<UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="WpfApplication1.RenderWaiting"
+             x:Name="thisControl">
+
+    <UserControl.Resources>
+        <Storyboard x:Key="storyboard">
+            <!-- New style -->
+            <DoubleAnimationUsingKeyFrames BeginTime="00:00:00"
+                                           Storyboard.TargetName="animationTarget"
+                                           Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[2].(RotateTransform.Angle)"
+                                           RepeatBehavior="Forever">
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.0000000"
+                                        Value="0" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.0500000"
+                                        Value="30" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.1000000"
+                                        Value="60" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.1500000"
+                                        Value="90" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.2000000"
+                                        Value="120" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.2500000"
+                                        Value="150" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.3000000"
+                                        Value="180" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.3500000"
+                                        Value="210" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.4000000"
+                                        Value="240" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.4500000"
+                                        Value="270" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.5000000"
+                                        Value="300" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.5500000"
+                                        Value="330" />
+                <DiscreteDoubleKeyFrame KeyTime="00:00:00.6000000"
+                                        Value="360" />
+            </DoubleAnimationUsingKeyFrames>
+
+            <!-- Old style -->
+            <!--<DoubleAnimationUsingKeyFrames BeginTime="00:00:00"
+                                           Storyboard.TargetName="animationTarget"
+                                           Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[2].(RotateTransform.Angle)"
+                                           RepeatBehavior="Forever">
+                <SplineDoubleKeyFrame KeyTime="00:00:00"
+                                      Value="0" />
+                <SplineDoubleKeyFrame KeyTime="00:00:00.5000000"
+                                      Value="360" />
+            </DoubleAnimationUsingKeyFrames>-->
+        </Storyboard>
+    </UserControl.Resources>
+
+    <!--<UserControl.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard Storyboard="{StaticResource storyboard}"/>
+        </EventTrigger>
+    </UserControl.Triggers>-->
+
+    <!-- New style -->
+    <Grid x:Name="LayoutRoot">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="0.342*" />
+            <RowDefinition Height="0.316*" />
+            <RowDefinition Height="0.342*" />
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+        </Grid.ColumnDefinitions>
+
+        <Grid x:Name="BackBars"
+              Grid.Row="0"
+              Grid.Column="7">
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back0" />
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back1">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="30" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back2">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="60" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back3">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="90" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back4">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="120" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back5">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="150" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back6">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="180" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back7">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="210" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back8">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="240" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back9">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="270" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back10">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="300" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF6B59D2"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.1"
+                       x:Name="Back11">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="330" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+        </Grid>
+        <Grid x:Name="animationTarget"
+              Grid.Row="0"
+              Grid.Column="7"
+              RenderTransformOrigin="0.5,1.466">
+            <Grid.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="1"
+                                    ScaleY="1" />
+                    <SkewTransform AngleX="0"
+                                   AngleY="0" />
+                    <RotateTransform Angle="0" />
+                    <TranslateTransform X="0"
+                                        Y="0" />
+                </TransformGroup>
+            </Grid.RenderTransform>
+            <Rectangle Fill="#FF80A4C8"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="1"
+                       x:Name="Bar0" />
+            <Rectangle Fill="#FF80A4C8"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.8"
+                       x:Name="Bar1">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="-30" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF80A4C8"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.6"
+                       x:Name="Bar2">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="-60" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF80A4C8"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.4"
+                       x:Name="Bar3">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="-90" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle Fill="#FF80A4C8"
+                       RenderTransformOrigin="0.5,1.466"
+                       Opacity="0.2"
+                       x:Name="Bar4">
+                <Rectangle.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1"
+                                        ScaleY="1" />
+                        <SkewTransform AngleX="0"
+                                       AngleY="0" />
+                        <RotateTransform Angle="-120" />
+                        <TranslateTransform X="0"
+                                            Y="0" />
+                    </TransformGroup>
+                </Rectangle.RenderTransform>
+            </Rectangle>
+        </Grid>
+    </Grid>
+
+    <!-- Old style -->
+    <!--<Grid x:Name="LayoutRoot">
+        <Path Stretch="Fill"
+              Stroke="#FF3D8DC4"
+              Data="M125,88.5 C123.7401,88.5 122.49511,88.563834 121.26809,88.688447 120.04107,88.813056 118.83201,88.998444 117.64398,89.241551 115.26791,89.727763 112.97595,90.444851 110.79255,91.36835 108.60915,92.291851 106.53432,93.421764 104.5925,94.733629 102.65069,96.045489 100.8419,97.539302 99.190603,99.190603 97.539302,100.8419 96.045489,102.65069 94.733629,104.5925 93.421764,106.53432 92.291851,108.60915 91.36835,110.79255 90.444851,112.97595 89.727763,115.26791&#xa;89.241551,117.64398 88.998444,118.83201 88.813056,120.04107 88.688447,121.26809 C88.563834,122.49511 88.5,123.7401 88.5,125 C88.5,126.2599 88.563834,127.50489 88.688447,128.73191 88.813056,129.95893 88.998444,131.16799 89.241551,132.35602 89.727763,134.73209 90.444851,137.02405 91.36835,139.20745 92.291851,141.39085 93.421764,143.46568 94.733629,145.4075 96.045489,147.34931 97.539302,149.1581 99.190603,150.80939 100.8419,152.4607 102.65069,153.95451 104.5925,155.26637 106.53432,156.57824 108.60915,157.70815 110.79255,158.63165 112.97595,159.55515 115.26791,160.27224&#xa;117.64398,160.75845 118.83201,161.00156 120.04107,161.18694 121.26809,161.31155 C122.49511,161.43616 123.7401,161.5 125,161.5 C126.2599,161.5 127.50489,161.43616 128.73191,161.31155 129.95893,161.18694 131.16799,161.00156 132.35602,160.75845 134.73209,160.27224 137.02405,159.55515 139.20745,158.63165 141.39085,157.70815 143.46568,156.57824 145.4075,155.26637 147.34931,153.95451 149.1581,152.4607 150.80939,150.80939 152.4607,149.1581 153.95451,147.34931 155.26637,145.4075 156.57824,143.46568 157.70815,141.39085 158.63165,139.20745 159.55515,137.02405 160.27224,134.73209&#xa;160.75845,132.35602 161.00156,131.16799 161.18694,129.95893 161.31155,128.73191 161.43616,127.50489 161.5,126.2599 161.5,125 161.5,123.7401 161.43616,122.49511 161.31155,121.26809 161.18694,120.04107 161.00156,118.83201 160.75845,117.64398 160.27224,115.26791 159.55515,112.97595 158.63165,110.79255 157.70815,108.60915 156.57824,106.53432 155.26637,104.5925 153.95451,102.65069 152.4607,100.8419 150.80939,99.190603 149.1581,97.539302&#xa;147.34931,96.045489 145.4075,94.733629 143.46568,93.421764 141.39085,92.291851 139.20745,91.36835 137.02405,90.444851 134.73209,89.727763 132.35602,89.241551 131.16799,88.998444 129.95893,88.813056 128.73191,88.688447 C127.50489,88.563834 126.2599,88.5 125,88.5 z M125,0.5 C129.29747,0.5 133.54408,0.71773529 137.7294,1.1427841 141.91473,1.5678253 146.03877,2.2001724 150.09109,3.0293961 154.14342,3.8586197 158.12403,4.8847275 162.02249,6.0972748 165.92096,7.3098221 169.73727,8.7088165 173.46102,10.283829 177.18476,11.858841 180.81593,13.609863 184.34409,15.526482 187.87225,17.443092 191.29742,19.525291 194.60913,21.762642 197.92085,24 201.11914,26.392509 204.19357,28.929749 207.26798,31.466984 210.21854,34.148949&#xa;213.03479,36.965206 215.85105,39.781464 218.53302,42.732018 221.07025,45.806438 223.60748,48.880859 226,52.079144 228.23735,55.390865 230.47472,58.702587 232.55692,62.127745 234.47353,65.655907 236.39014,69.184071 238.14116,72.815238 239.71617,76.538982 241.29118,80.262725 242.69019,84.079044 243.90273,87.977507 245.11528,91.875973 246.14137,95.856583 246.9706,99.908909 247.79984,103.96123 248.43217,108.08527 248.85722,112.2706 249.28226,116.45592&#xa;249.5,120.70253 249.5,125 249.5,129.29747 249.28226,133.54408 248.85722,137.7294 248.43217,141.91473 247.79984,146.03877 246.9706,150.09109 246.14137,154.14342 245.11528,158.12403 243.90273,162.02249 242.69019,165.92096 241.29118,169.73727 239.71617,173.46102 238.14116,177.18476 236.39014,180.81593 234.47353,184.34409 232.55692,187.87225 230.47472,191.29742 228.23735,194.60913 226,197.92085 223.60748,201.11914 221.07025,204.19357&#xa;218.53302,207.26798 215.85105,210.21854 213.03479,213.03479 210.21854,215.85105 207.26798,218.53302 204.19357,221.07025 201.11914,223.60748 197.92085,226 194.60913,228.23735 191.29742,230.47472 187.87225,232.55692 184.34409,234.47353 180.81593,236.39014 177.18476,238.14116 173.46102,239.71617 169.73727,241.29118 165.92096,242.69019 162.02249,243.90273 158.12403,245.11528 154.14342,246.14137 150.09109,246.9706 146.03877,247.79984 141.91473,248.43217&#xa;137.7294,248.85722 C133.54408,249.28226 129.29747,249.5 125,249.5 C120.70253,249.5 116.45592,249.28226 112.2706,248.85722 108.08527,248.43217 103.96123,247.79984 99.908909,246.9706 95.856583,246.14137 91.875973,245.11528 87.977507,243.90273 84.079044,242.69019 80.262725,241.29118 76.538982,239.71617 72.815238,238.14116 69.184071,236.39014 65.655907,234.47353 62.127745,232.55692 58.702587,230.47472 55.390865,228.23735 52.079144,226 48.880859,223.60748 45.806438,221.07025 42.732018,218.53302 39.781464,215.85105&#xa;36.965206,213.03479 34.148949,210.21854 31.466984,207.26798 28.929749,204.19357 26.392509,201.11914 24,197.92085 21.762642,194.60913 19.525291,191.29742 17.443092,187.87225 15.526482,184.34409 13.609863,180.81593 11.858841,177.18476 10.283829,173.46102 8.7088165,169.73727 7.3098221,165.92096 6.0972748,162.02249 4.8847275,158.12403 3.8586197,154.14342 3.0293961,150.09109 2.2001724,146.03877 1.5678253,141.91473 1.1427841,137.7294 C0.71773529,133.54408 0.5,129.29747 0.5,125 C0.5,120.70253 0.71773529,116.45592 1.1427841,112.2706 1.5678253,108.08527 2.2001724,103.96123 3.0293961,99.908909 3.8586197,95.856583 4.8847275,91.875973 6.0972748,87.977507 7.3098221,84.079044 8.7088165,80.262725 10.283829,76.538982 11.858841,72.815238 13.609863,69.184071 15.526482,65.655907 17.443092,62.127745 19.525291,58.702587 21.762642,55.390865 24,52.079144 26.392509,48.880859 28.929749,45.806438 31.466984,42.732018 34.148949,39.781464&#xa;36.965206,36.965206 39.781464,34.148949 42.732018,31.466984 45.806438,28.929749 48.880859,26.392509 52.079144,24 55.390865,21.762642 58.702587,19.525291 62.127745,17.443092 65.655907,15.526482 69.184071,13.609863 72.815238,11.858841 76.538982,10.283829 80.262725,8.7088165 84.079044,7.3098221 87.977507,6.0972748 91.875973,4.8847275 95.856583,3.8586197 99.908909,3.0293961 103.96123,2.2001724 108.08527,1.5678253 112.2706,1.1427841 C116.45592,0.71773529 120.70253,0.5 125,0.5 z"
+              x:Name="animationTarget"
+              RenderTransformOrigin="0.5,0.5">
+            <Path.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="1"
+                                    ScaleY="1" />
+                    <SkewTransform AngleX="0"
+                                   AngleY="0" />
+                    <RotateTransform Angle="0" />
+                    <TranslateTransform X="0"
+                                        Y="0" />
+                </TransformGroup>
+            </Path.RenderTransform>
+            <Path.Fill>
+                <LinearGradientBrush EndPoint="0.5,1"
+                                     StartPoint="0.5,0">
+                    <GradientStop Color="#F00B7DBF"
+                                  Offset="0" />
+                    <GradientStop Color="#FFEDF8FF"
+                                  Offset="1" />
+                </LinearGradientBrush>
+            </Path.Fill>
+        </Path>
+    </Grid>-->
+</UserControl>

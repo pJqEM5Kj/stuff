@@ -23,7 +23,7 @@ namespace ConsoleApplication1
             Func<Card, Card, int, int, int, double> func =
                 (Card card1, Card card2, int gameNumber, int parallelLevel, int enemyCount) =>
                 {
-                    var parameters = new ExperimentParameters();
+                    var parameters = new CalculationParameters();
 
                     parameters.PlayerCard1 = card1;
                     parameters.PlayerCard2 = card2;

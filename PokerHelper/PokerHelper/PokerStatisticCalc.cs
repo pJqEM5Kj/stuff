@@ -15,11 +15,24 @@ namespace PokerHelper
         private readonly object UpdateStat_SyncRoot = new object();
         private readonly object Rnd_SyncRoot = new object();
 
+        public static Dictionary<int, Tuple<double, double>> HoleCardsStatistic = new Dictionary<int, Tuple<double, double>>()
+        {
+            { 1, Tuple.Create(29.148, 84.815) },
+            { 2, Tuple.Create(18.32635, 73.20935) },
+            { 3, Tuple.Create(12.9407, 63.6387) },
+            { 4, Tuple.Create(10.05565, 55.839) },
+            { 5, Tuple.Create(8.20165, 49.1143) },
+            { 6, Tuple.Create(7.0137, 43.33665) },
+            { 7, Tuple.Create(6.205, 38.608) },
+            { 8, Tuple.Create(4.503, 34.407) },
+            { 9, Tuple.Create(4.941, 30.676) },
+        };
+
         private Random rnd = new Random(Guid.NewGuid().GetHashCode());
         private int SimulatedGamesCount;
 
 
-        public Statistic RunExperiment(ExperimentParameters param)
+        public Statistic RunExperiment(CalculationParameters param)
         {
             CheckParameters(param);
 
@@ -140,7 +153,7 @@ namespace PokerHelper
             }
         }
 
-        private static void CheckParameters(ExperimentParameters param)
+        private static void CheckParameters(CalculationParameters param)
         {
             Code.RequireNotNull(param);
             Code.RequireNotNull(param.PlayerCard1);
@@ -152,7 +165,7 @@ namespace PokerHelper
             Code.Require(param.TimeLimit == null || param.TimeLimit.Value > TimeSpan.Zero);
         }
 
-        private void SimulateGame(Card player_card1, Card player_card2, Card[] open_cards, Card[] free_cards, int enemyPlayersCount, StatisticInternal stat, ExperimentParameters param)
+        private void SimulateGame(Card player_card1, Card player_card2, Card[] open_cards, Card[] free_cards, int enemyPlayersCount, StatisticInternal stat, CalculationParameters param)
         {
             var common_cards = new Card[5];
             Array.Copy(open_cards, common_cards, open_cards.Length);
@@ -500,7 +513,7 @@ namespace PokerHelper
             return result;
         }
 
-        private Card[] GetOpenCards(ExperimentParameters ex_params)
+        private Card[] GetOpenCards(CalculationParameters ex_params)
         {
             var boardCards = new Card[]
             {
