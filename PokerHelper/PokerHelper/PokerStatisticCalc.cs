@@ -174,12 +174,16 @@ namespace PokerHelper
             Array.Copy(free_cards, cards_shuffled, free_cards.Length);
             Shuffle(cards_shuffled);
 
+            int cards_shuffled_used_count = 0;
+
             if (open_cards.Length < 5)
             {
                 int destinationIndex = open_cards.Length;
                 int number_of_elements_to_copy = common_cards.Length - open_cards.Length;
 
                 Array.Copy(cards_shuffled, 0, common_cards, destinationIndex, number_of_elements_to_copy);
+
+                cards_shuffled_used_count = number_of_elements_to_copy;
             }
 
             OrderCards(common_cards);
@@ -192,13 +196,12 @@ namespace PokerHelper
             PlayerHandResult player_stat_hand_result = PlayerHandResult.PlayerWin;
             PlayerHandResult player_hand_final_result = PlayerHandResult.PlayerWin;
 
-            int used_cards_count = common_cards.Length;
             for (int enemyIndx = 0; enemyIndx < enemyPlayersCount; enemyIndx++)
             {
-                Card enemy_card1 = cards_shuffled[used_cards_count];
-                used_cards_count++;
-                Card enemy_card2 = cards_shuffled[used_cards_count];
-                used_cards_count++;
+                Card enemy_card1 = cards_shuffled[cards_shuffled_used_count];
+                cards_shuffled_used_count++;
+                Card enemy_card2 = cards_shuffled[cards_shuffled_used_count];
+                cards_shuffled_used_count++;
 
                 Card[] enemy_cards = AppendPreserveOrder(common_cards, enemy_card1, enemy_card2);
                 bool[] enemy_cards_equality_by_value_helper = GetEqualityCardsByValueHelper(enemy_cards);
