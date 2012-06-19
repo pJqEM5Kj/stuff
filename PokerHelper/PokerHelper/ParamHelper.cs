@@ -22,9 +22,9 @@ namespace PokerHelper
             return 1;
         }
 
-        public static int GetCalculationTimeLimit()
+        public static TimeSpan GetCalculationTimeLimit()
         {
-            return 1700; //ms
+            return TimeSpan.FromSeconds(1.7);
         }
 
         public static bool GetCalculationTimeLimitEnabled()

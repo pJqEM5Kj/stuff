@@ -23,25 +23,19 @@ using PokerHelper;
 
 namespace WpfApplication1
 {
-    //@!mov todo:
-    // deep refactor
-    // validity show
-
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         internal MainWindowPr Presenter { get; set; }
 
         //
-        internal const int ActivationTimeout = 50; //ms
         internal const int enemyPlayerCount_tb_SelectTime = 300; //ms
 
         //
         private System.Timers.Timer _enemyPlayerCount_tb_TextChanged_Timer;
         private Control _lastFocusedElement;
         private int _ignore_cards_tb_TextChanged = 0;
+        private Brush _validCards_color;
+        private readonly Brush _invalidCards_color = Brushes.Red;
 
 
         public MainWindow()
@@ -83,6 +77,8 @@ namespace WpfApplication1
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            InitialPreparations_Preview();
+
             Presenter.View_Loaded();
 
             InitialPreparations();
@@ -148,7 +144,7 @@ namespace WpfApplication1
         {
             if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                Presenter.StartSimulation();
+                Presenter.StartCalculation();
             }
         }
 
@@ -165,14 +161,14 @@ namespace WpfApplication1
 
         private void runSimulation_btn_Click(object sender, RoutedEventArgs e)
         {
-            Presenter.StartSimulation();
+            Presenter.StartCalculation();
         }
 
         private void cards_tb_KeyDown(object sender, KeyEventArgs e)
         {
             if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                Presenter.StartSimulation();
+                Presenter.StartCalculation();
             }
         }
 
@@ -180,7 +176,7 @@ namespace WpfApplication1
         {
             if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                Presenter.StartSimulation();
+                Presenter.StartCalculation();
             }
         }
 
@@ -188,7 +184,7 @@ namespace WpfApplication1
         {
             if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                Presenter.StartSimulation();
+                Presenter.StartCalculation();
             }
         }
 
@@ -196,7 +192,7 @@ namespace WpfApplication1
         {
             if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                Presenter.StartSimulation();
+                Presenter.StartCalculation();
             }
         }
 
@@ -217,129 +213,232 @@ namespace WpfApplication1
 
         internal void Pr_ParallelismLevel_Changed()
         {
-            parallelismLevel_tb.Text = Presenter.ParallelismLevel_Str;
+            EnsureUICall(
+                () =>
+                {
+                    parallelismLevel_tb.Text = Presenter.ParallelismLevel_Str;
+                });
         }
 
         internal void Pr_SimulatedGamesCount_Changed()
         {
-            simulatedGamesCount_tb.Text = Presenter.SimulatedGamesCount_Str;
+            EnsureUICall(
+                () =>
+                {
+                    simulatedGamesCount_tb.Text = Presenter.SimulatedGamesCount_Str;
+                });
         }
 
         internal void Pr_EnemyPlayerCount_Changed()
         {
-            enemyPlayerCount_tb.Text = Presenter.EnemyPlayerCount_Str;
+            EnsureUICall(
+                () =>
+                {
+                    enemyPlayerCount_tb.Text = Presenter.EnemyPlayerCount_Str;
+                });
         }
 
         internal void Pr_CalculationTimeLimitEnabled_Changed()
         {
-            timeLimit_ckb.IsChecked = Presenter.CalculationTimeLimitEnabled;
+            EnsureUICall(
+                () =>
+                {
+                    timeLimit_ckb.IsChecked = Presenter.CalculationTimeLimitEnabled;
+                });
         }
 
         internal void Pr_CalculationTimeLimit_Changed()
         {
-            timeLimit_tb.Text = Presenter.CalculationTimeLimit_Str;
+            EnsureUICall(
+                () =>
+                {
+                    timeLimit_tb.Text = Presenter.CalculationTimeLimit_Str;
+                });
         }
 
-        internal void Pr_SimulationStarted()
+        internal void Pr_CalculationStarted()
         {
-            _lastFocusedElement = Keyboard.FocusedElement as Control;
+            EnsureUICall(
+                () =>
+                {
+                    _lastFocusedElement = Keyboard.FocusedElement as Control;
 
-            mainGrid.IsEnabled = false;
-            waiter.Visibility = Visibility.Visible;
+                    mainGrid.IsEnabled = false;
+                    waiter.Visibility = Visibility.Visible;
 
-            progress_bar.Visibility = Visibility.Visible;
-            progress_bar.Value = 0;
+                    progress_bar.Visibility = Visibility.Visible;
+                    progress_bar.Value = 0;
 
-            progress_bar.Minimum = 0;
-            progress_bar.Maximum = Presenter.CalculationParameters.GameNumber;
+                    progress_bar.Minimum = 0;
+                    progress_bar.Maximum = Presenter.CalculationParameters.GameNumber;
+                });
         }
 
-        internal void Pr_SimulationFinished()
+        internal void Pr_CalculationFinished()
         {
-            mainGrid.IsEnabled = true;
-            waiter.Visibility = Visibility.Hidden;
-            progress_bar.Visibility = Visibility.Collapsed;
+            EnsureUICall(
+                () =>
+                {
+                    mainGrid.IsEnabled = true;
+                    waiter.Visibility = Visibility.Hidden;
+                    progress_bar.Visibility = Visibility.Collapsed;
 
-            if (_lastFocusedElement != null)
-            {
-                _lastFocusedElement.Focus();
-                _lastFocusedElement = null;
-            }
+                    if (_lastFocusedElement != null)
+                    {
+                        _lastFocusedElement.Focus();
+                        _lastFocusedElement = null;
+                    }
 
-            switch (Presenter.CalculationResult)
-            {
-                case CalculationResult.Ok:
-                    ShowCalculatedStatistic_Ok();
-                    break;
+                    switch (Presenter.CalculationResult)
+                    {
+                        case CalculationResult.Ok:
+                            ShowCalculatedStatistic_Ok();
+                            break;
 
-                case CalculationResult.Cancelled:
-                    result1_tb.Text = "Cancelled.";
-                    result2_tb.Text = string.Empty;
-                    result3_tb.Text = string.Empty;
-                    break;
+                        case CalculationResult.Cancelled:
+                            result1_tb.Text = "Cancelled.";
+                            result2_tb.Text = string.Empty;
+                            result3_tb.Text = string.Empty;
+                            break;
 
-                case CalculationResult.Failed:
-                    result1_tb.Text = "Error occured:" + Environment.NewLine + Presenter.CalculationError.ToString();
-                    result2_tb.Text = string.Empty;
-                    result3_tb.Text = string.Empty;
-                    break;
+                        case CalculationResult.Failed:
+                            result1_tb.Text = "Error occured:" + Environment.NewLine + Presenter.CalculationError.ToString();
+                            result2_tb.Text = string.Empty;
+                            result3_tb.Text = string.Empty;
+                            break;
 
-                default:
-                    throw Utility.GetUnknownEnumValueException(Presenter.CalculationResult);
-            }
+                        default:
+                            throw Utility.GetUnknownEnumValueException(Presenter.CalculationResult);
+                    }
+                });
         }
 
         internal void Pr_ParametersAreNotValid(Exception ex)
         {
-            result1_tb.Text = "Parameters are not valid:" + Environment.NewLine + ex.ToString();
-            result2_tb.Text = string.Empty;
-            result3_tb.Text = string.Empty;
+            EnsureUICall(
+                () =>
+                {
+                    result1_tb.Text = "Parameters are not valid:" + Environment.NewLine + ex.ToString();
+                    result2_tb.Text = string.Empty;
+                    result3_tb.Text = string.Empty;
+                });
         }
 
         internal void Pr_SetProgress(int value)
         {
-            progress_bar.Value = value;
+            EnsureUICall(
+                () =>
+                {
+                    progress_bar.Value = value;
+                });
         }
 
         internal void Pr_CorrectCardsString(string val)
         {
-            _ignore_cards_tb_TextChanged++;
-            try
-            {
-                int caretIndx = cards_tb.CaretIndex;
-                cards_tb.Text = val;
-                cards_tb.CaretIndex = caretIndx;
-            }
-            finally
-            {
-                _ignore_cards_tb_TextChanged--;
-            }
+            EnsureUICall(
+                () =>
+                {
+                    _ignore_cards_tb_TextChanged++;
+                    try
+                    {
+                        int caretIndx = cards_tb.CaretIndex;
+                        cards_tb.Text = val;
+                        cards_tb.CaretIndex = caretIndx;
+                    }
+                    finally
+                    {
+                        _ignore_cards_tb_TextChanged--;
+                    }
+                });
         }
 
         internal void Pr_CardsChanged()
         {
-            _ignore_cards_tb_TextChanged++;
-            try
-            {
-                cards_tb.Text = Presenter.Cards_Str;
+            EnsureUICall(
+                () =>
+                {
+                    _ignore_cards_tb_TextChanged++;
+                    try
+                    {
+                        cards_tb.Text = Presenter.Cards_Str;
 
-                if (Presenter.Cards_IsValid)
+                        if (Presenter.Cards_IsValid)
+                        {
+                            cards_lbl.Foreground = _validCards_color;
+                        }
+                        else
+                        {
+                            cards_lbl.Foreground = _invalidCards_color;
+                        }
+
+                        if (Presenter.Cards_IsValid)
+                        {
+                            DisplayCards(Presenter.Cards);
+                        }
+                        else
+                        {
+                            DisplayCards(null);
+                        }
+                    }
+                    finally
+                    {
+                        _ignore_cards_tb_TextChanged--;
+                    }
+                });
+        }
+
+        internal string Pr_Get_ParallelismLevel()
+        {
+            return EnsureUICall(
+                () =>
                 {
-                    DisplayCards(Presenter.Cards);
-                }
-                else
+                    return parallelismLevel_tb.Text;
+                });
+        }
+
+        internal string Pr_Get_SimulatedGamesCount()
+        {
+            return EnsureUICall(
+                () =>
                 {
-                    DisplayCards(null);
-                }
-            }
-            finally
-            {
-                _ignore_cards_tb_TextChanged--;
-            }
+                    return simulatedGamesCount_tb.Text;
+                });
+        }
+
+        internal string Pr_Get_EnemyPlayerCount()
+        {
+            return EnsureUICall(
+                () =>
+                {
+                    return enemyPlayerCount_tb.Text;
+                });
+        }
+
+        internal bool Pr_Get_CalculationTimeLimitEnabled()
+        {
+            return EnsureUICall(
+                () =>
+                {
+                    return timeLimit_ckb.IsChecked ?? false;
+                });
+        }
+
+        internal string Pr_Get_CalculationTimeLimit()
+        {
+            return EnsureUICall(
+                () =>
+                {
+                    return timeLimit_tb.Text;
+                });
         }
 
         #endregion
 
+
+        private void InitialPreparations_Preview()
+        {
+            _validCards_color = cards_lbl.Foreground;
+        }
 
         private void InitialPreparations()
         {
@@ -465,6 +564,11 @@ namespace WpfApplication1
                 card7_img,
             };
 
+            if (cards.IsNullOrEmpty())
+            {
+                cards = new Card[0];
+            }
+
             for (int i = 0; i < Math.Max(cards.Length, cardImgCtrls.Length); i++)
             {
                 Image cardImgCtrl = Utility.TryGetByIndx(cardImgCtrls, i, null);
@@ -485,6 +589,33 @@ namespace WpfApplication1
                 }
             }
         }
+
+        //
+        private void EnsureUICall(Action action)
+        {
+            if (Thread.CurrentThread.ManagedThreadId != Dispatcher.Thread.ManagedThreadId)
+            {
+                Dispatcher.Invoke(action);
+            }
+            else
+            {
+                action();
+            }
+        }
+
+        private T EnsureUICall<T>(Func<T> func)
+        {
+            T res = default(T);
+
+            EnsureUICall(
+                () =>
+                {
+                    res = func();
+                });
+
+            return res;
+        }
+        //
     }
 
     class MainWindowPr
@@ -497,7 +628,9 @@ namespace WpfApplication1
         //
         internal readonly Logger Logger = new Logger();
 
-        //
+
+        #region Const Fields and Props
+
         internal const int ClipboardMonitorSleep = 100; //ms
         internal const int FileMonitorSleep = 600; //ms
         internal const int ProgressWatcherSleep = 100; //ms
@@ -505,13 +638,13 @@ namespace WpfApplication1
         internal const string AppVersionFormatString = "app v{0}";
         internal const string LibVersionFormatString = "lib v{0}";
 
-        internal const char ExternalInput_StartSimulation = 'q';
-        internal const char ExternalInput_StopSimulation = 'w';
-        internal const char ExternalInput_GetCardsFromLogFile = 'a';
-
         internal const string LogFilePath = @"C:\Program Files\PokerStars\PokerStars.log.0";
 
-        //
+        #endregion
+
+
+        #region Public & Internal Fields and Props
+
         internal string ParallelismLevel_Str { get; private set; }
         internal bool ParallelismLevel_IsValid { get; private set; }
         internal int ParallelismLevel { get; private set; }
@@ -528,13 +661,13 @@ namespace WpfApplication1
 
         internal string CalculationTimeLimit_Str { get; private set; }
         internal bool CalculationTimeLimit_IsValid { get; private set; }
-        internal double CalculationTimeLimit { get; private set; }
+        internal TimeSpan CalculationTimeLimit { get; private set; }
 
         internal string Cards_Str { get; private set; }
         internal bool Cards_IsValid { get; private set; }
         internal Card[] Cards { get; private set; }
 
-        internal bool IsWatchCardsInClipboard { get; private set; }
+        internal bool IsWatchCardsInClipboardAndLogFile { get; private set; }
         internal bool IsWatchGlobalKeys { get; private set; }
         internal bool IsCalcLogCardsImmediately { get; private set; }
 
@@ -547,14 +680,18 @@ namespace WpfApplication1
         internal Dictionary<Card, BitmapImage> CardImages { get; private set; }
 
         //
-        internal bool Calculating { get; private set; }
+        internal bool IsCalculating { get; private set; }
         internal CalculationResult CalculationResult { get; private set; }
         internal Exception CalculationError { get; private set; }
         internal Statistic CalculatedStatistic { get; private set; }
         internal TimeSpan CalculationTime { get; private set; }
         internal CalculationParameters CalculationParameters { get; private set; }
 
-        //
+        #endregion
+
+
+        #region Private Fields and Props
+
         private KeyInterceptor _globalKeyHooker;
         private Random _rnd = new Random(Guid.NewGuid().GetHashCode());
 
@@ -563,6 +700,8 @@ namespace WpfApplication1
 
         private long? _logFileSize;
         private string _clipboardTxt;
+
+        #endregion
 
 
         public void Start()
@@ -578,6 +717,370 @@ namespace WpfApplication1
             MainView.Presenter = this;
         }
 
+        private void SetVersions()
+        {
+            AppVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            CoreLibVersion = Assembly.GetAssembly(typeof(PokerStatisticCalc)).GetName().Version;
+        }
+
+        private void ProcessParsedFromLogFileCards(Card c1, Card c2)
+        {
+            bool distinct = true;
+
+            if (!Cards.IsNullOrEmpty() && Cards.Length >= 2)
+            {
+                distinct = !IsCardsNonOrderEqual(new Card[] { c1, c2, }, Cards.Take(2).ToArray());
+            }
+
+            if (!distinct)
+            {
+                return;
+            }
+
+            CancelCalculation(
+                () =>
+                {
+                    SetCards(new Card[] { c1, c2, });
+
+                    if (IsCalcLogCardsImmediately)
+                    {
+                        StartCalculation();
+                    }
+                });
+        }
+
+        public void StartCalculation()
+        {
+            _calculationTask = null;
+            CalculationParameters = null;
+
+            try
+            {
+                CalculationParameters = PrepareCalculationParameters();
+                Code.RequireNotNull(CalculationParameters);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+                MainView.Pr_ParametersAreNotValid(ex);
+                return;
+            }
+
+            MainView.Pr_CalculationStarted();
+
+            TimeSpan calcTime = TimeSpan.Zero;
+            Statistic stat = null;
+
+            IsCalculating = true;
+            _cancelTokenSource = new CancellationTokenSource();
+            CalculationParameters.CancelToken = _cancelTokenSource.Token;
+
+            _calculationTask = Task.Factory.StartNew(
+               () =>
+               {
+                   var psc = new PokerStatisticCalc();
+                   var sw = Stopwatch.StartNew();
+                   stat = psc.RunExperiment(CalculationParameters);
+                   sw.Stop();
+                   calcTime = sw.Elapsed;
+               },
+               _cancelTokenSource.Token);
+
+            _calculationTask.ContinueWith(
+                (Task ancestor) =>
+                {
+                    try
+                    {
+                        CalculationFinished(ancestor.Exception, ancestor.IsCanceled, stat, calcTime);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogException(ex);
+                    }
+                });
+
+            StartMonitor_ProgressWatcher();
+        }
+
+        private void CalculationFinished(Exception ex, bool cancelled, Statistic stat, TimeSpan calcTime)
+        {
+            IsCalculating = false;
+            _cancelTokenSource = null;
+
+            if (ex != null)
+            {
+                Logger.LogException(ex);
+
+                CalculatedStatistic = null;
+                CalculationTime = TimeSpan.Zero;
+                CalculationResult = CalculationResult.Failed;
+                CalculationError = ex;
+            }
+            else if (cancelled)
+            {
+                CalculatedStatistic = null;
+                CalculationTime = TimeSpan.Zero;
+                CalculationResult = CalculationResult.Cancelled;
+            }
+            else
+            {
+                CalculatedStatistic = stat;
+                CalculationTime = calcTime;
+                CalculationResult = CalculationResult.Ok;
+            }
+
+            MainView.Pr_CalculationFinished();
+        }
+
+        private CalculationParameters PrepareCalculationParameters()
+        {
+            var param = new CalculationParameters();
+
+            InvalidatePendingParameters();
+
+            if (!SimulatedGamesCount_IsValid)
+            {
+                SetSimulatedGamesCount(ParamHelper.GetSimulatedGameCount());
+            }
+            param.GameNumber = SimulatedGamesCount;
+
+            if (!ParallelismLevel_IsValid)
+            {
+                SetParallelismLevel(ParamHelper.GetParallelismLevel());
+            }
+            param.ParallelLevel = ParallelismLevel;
+
+            if (!EnemyPlayerCount_IsValid)
+            {
+                SetEnemyPlayerCount(ParamHelper.GetEnemyPlayersCount());
+            }
+            param.EnemyPlayersCount = EnemyPlayerCount;
+
+            if (CalculationTimeLimitEnabled)
+            {
+                if (!CalculationTimeLimit_IsValid)
+                {
+                    SetCalculationTimeLimit(ParamHelper.GetCalculationTimeLimit());
+                }
+                param.TimeLimit = CalculationTimeLimit;
+            }
+            else
+            {
+                param.TimeLimit = null;
+            }
+
+            if (!Cards_IsValid)
+            {
+                SetCards(GetRandomHand(_rnd));
+            }
+
+            Card[] cards = Cards.ToArray();
+
+            param.PlayerCard1 = cards[0];
+            param.PlayerCard2 = cards[1];
+
+            param.Flop1 = Utility.TryGetByIndx(cards, 2);
+            param.Flop2 = Utility.TryGetByIndx(cards, 3);
+            param.Flop3 = Utility.TryGetByIndx(cards, 4);
+            param.Turn = Utility.TryGetByIndx(cards, 5);
+            param.River = Utility.TryGetByIndx(cards, 6);
+
+            return param;
+        }
+
+        private void SetCards(Card[] cards, bool add = false)
+        {
+            if (add)
+            {
+                if (!cards.IsNullOrEmpty())
+                {
+                    List<Card> res_cards;
+                    if (!Cards.IsNullOrEmpty())
+                    {
+                        res_cards = Cards.ToList();
+                    }
+                    else
+                    {
+                        res_cards = new List<Card>();
+                    }
+                    res_cards.AddRange(cards);
+                }
+            }
+            else
+            {
+                if (cards.IsNullOrEmpty())
+                {
+                    Cards = null;
+                }
+                else
+                {
+                    Cards = cards.ToArray();
+                }
+            }
+
+            if (Cards == null || Cards.Length < 2)
+            {
+                Cards_IsValid = false;
+            }
+            else
+            {
+                Cards_IsValid = true;
+            }
+            
+            Cards_Str = ConvertCardsToCardsInputStr(Cards);
+
+            MainView.Pr_CardsChanged();
+        }
+
+        private void SetSimulatedGamesCount(int val)
+        {
+            SimulatedGamesCount = val;
+            SimulatedGamesCount_IsValid = true;
+            SimulatedGamesCount_Str = val.ToString();
+            MainView.Pr_SimulatedGamesCount_Changed();
+        }
+
+        private void SetParallelismLevel(int val)
+        {
+            ParallelismLevel = val;
+            ParallelismLevel_IsValid = true;
+            ParallelismLevel_Str = val.ToString();
+            MainView.Pr_ParallelismLevel_Changed();
+        }
+
+        private void SetEnemyPlayerCount(int val)
+        {
+            EnemyPlayerCount = val;
+            EnemyPlayerCount_IsValid = true;
+            EnemyPlayerCount_Str = val.ToString();
+            MainView.Pr_EnemyPlayerCount_Changed();
+        }
+
+        private void SetCalculationTimeLimit(TimeSpan val)
+        {
+            CalculationTimeLimit = val;
+            CalculationTimeLimit_IsValid = true;
+            CalculationTimeLimit_Str = val.TotalSeconds.ToString(CultureInfo.InvariantCulture);
+            MainView.Pr_CalculationTimeLimit_Changed();
+        }
+
+        private void SetCalculationTimeLimitEnabled(bool val)
+        {
+            CalculationTimeLimitEnabled = val;
+            MainView.Pr_CalculationTimeLimitEnabled_Changed();
+        }
+
+        /// <summary>
+        /// Cancel calculation task and execute continuation.
+        /// Continuation will be executed if there is nothing to cancel or right after calculation task become cancelled.
+        /// </summary>
+        /// <param name="continuation">Continuation to be executed</param>
+        /// <returns>True if there was cancellation and False otherwise.</returns>
+        private bool CancelCalculation(Action continuation = null)
+        {
+            CancellationTokenSource cts = _cancelTokenSource;
+            Task calculationTask = _calculationTask;
+
+            if (IsCalculating)
+            {
+                cts.Cancel();
+
+                Code.RequireNotNull(calculationTask);
+
+                if (continuation != null)
+                {
+                    calculationTask.ContinueWith(
+                        (Task ancestor) =>
+                        {
+                            try
+                            {
+                                continuation();
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.LogException(ex);
+                            }
+                        });
+                }
+
+                return true;
+            }
+
+            if (continuation != null)
+            {
+                continuation();
+            }
+
+            return false;
+        }
+
+        private void InvalidatePendingParameters()
+        {
+            Invalidate_ParallelismLevel();
+            Invalidate_SimulatedGamesCount();
+            Invalidate_EnemyPlayerCount();
+            Invalidate_CalculationTimeLimitEnabled();
+            Invalidate_CalculationTimeLimit();
+        }
+
+        private void Invalidate_ParallelismLevel()
+        {
+            int i;
+
+            ParallelismLevel_Str = MainView.Pr_Get_ParallelismLevel();
+            ParallelismLevel_IsValid = int.TryParse(ParallelismLevel_Str, out i);
+            if (ParallelismLevel_IsValid)
+            {
+                ParallelismLevel = i;
+            }
+        }
+
+        private void Invalidate_SimulatedGamesCount()
+        {
+            int i;
+
+            SimulatedGamesCount_Str = MainView.Pr_Get_SimulatedGamesCount();
+            SimulatedGamesCount_IsValid = int.TryParse(SimulatedGamesCount_Str, out i);
+            if (SimulatedGamesCount_IsValid)
+            {
+                SimulatedGamesCount = i;
+            }
+        }
+
+        private void Invalidate_EnemyPlayerCount()
+        {
+            int i;
+
+            EnemyPlayerCount_Str = MainView.Pr_Get_EnemyPlayerCount();
+            EnemyPlayerCount_IsValid = int.TryParse(EnemyPlayerCount_Str, out i);
+            if (EnemyPlayerCount_IsValid)
+            {
+                EnemyPlayerCount = i;
+            }
+        }
+
+        private void Invalidate_CalculationTimeLimitEnabled()
+        {
+            CalculationTimeLimitEnabled = MainView.Pr_Get_CalculationTimeLimitEnabled();
+        }
+
+        private void Invalidate_CalculationTimeLimit()
+        {
+            double d;
+
+            CalculationTimeLimit_Str = MainView.Pr_Get_CalculationTimeLimit();
+            CalculationTimeLimit_IsValid = double.TryParse(
+                CalculationTimeLimit_Str,
+                Utility.GetDefaultDoubleParseStyles(),
+                CultureInfo.InvariantCulture,
+                out d);
+
+            if (CalculationTimeLimit_IsValid)
+            {
+                CalculationTimeLimit = TimeSpan.FromSeconds(d);
+            }
+        }
+
 
         #region From View
 
@@ -590,13 +1093,14 @@ namespace WpfApplication1
 
             KeyManager = new MainWindowKeyManager();
 
+            SetCards(null);
             SetParallelismLevel(ParamHelper.GetParallelismLevel());
             SetSimulatedGamesCount(ParamHelper.GetSimulatedGameCount());
             SetEnemyPlayerCount(ParamHelper.GetEnemyPlayersCount());
             SetCalculationTimeLimitEnabled(ParamHelper.GetCalculationTimeLimitEnabled());
             SetCalculationTimeLimit(ParamHelper.GetCalculationTimeLimit());
 
-            CardImages = BuildCardImages();
+            CardImages = BuildCardImages(Properties.Resources.cardfaces);
 
             Cards = GetRandomHand(_rnd);
 
@@ -607,10 +1111,9 @@ namespace WpfApplication1
 
         internal void View_KeyDown(KeyEventArgs e)
         {
-            CancellationTokenSource cts = _cancelTokenSource;
-            if (Calculating && e.Key == Key.Escape)
+            if (IsCalculating && KeyManager.IsGlobalCancelKey(e))
             {
-                cts.Cancel();
+                CancelCalculation();
             }
         }
 
@@ -631,14 +1134,12 @@ namespace WpfApplication1
         {
             handled = false;
 
-            bool shiftDown = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
-
-            if (shiftDown && (e.Key == Key.Delete || e.Key == Key.Back))
+            if (KeyManager.IsClearCardsInCardsInput(e))
             {
                 SetCards(new Card[0]);
             }
 
-            if (shiftDown && e.Key == Key.Enter)
+            if (KeyManager.IsSetRandomCardsInCardsInput(e))
             {
                 SetCards(GetRandomHand(_rnd));
                 handled = true;
@@ -651,26 +1152,53 @@ namespace WpfApplication1
 
             if (!val.IsNullOrEmptyStr())
             {
+                bool flag = true;
                 for (int i = 0; i < val.Length; i++)
                 {
-                    correctedVal += (i % 2 == 0) ? char.ToUpper(val[i]) : char.ToLower(val[i]);
+                    char c = val[i];
+
+                    if (char.IsWhiteSpace(c))
+                    {
+                        correctedVal += c;
+                        continue;
+                    }
+
+                    if (flag)
+                    {
+                        correctedVal += char.ToUpperInvariant(c);
+                    }
+                    else
+                    {
+                        correctedVal += char.ToLowerInvariant(c);
+                    }
+
+                    flag = !flag;
                 }
             }
 
             Cards_Str = correctedVal;
             MainView.Pr_CorrectCardsString(correctedVal);
 
+            bool parsed = true;
+            Card[] cards = null;
             try
             {
-                Card[] cards = ParseCards(correctedVal);
-                Cards = cards;
-                Cards_IsValid = true;
+                cards = ParseCardsFromCardsInput(correctedVal);
             }
             catch (Exception ex)
             {
-                Cards_IsValid = false;
-
                 Logger.LogException(ex);
+                parsed = false;
+            }
+
+            if (parsed)
+            {
+                Cards = cards;
+                Cards_IsValid = true;
+            }
+            else
+            {
+                Cards_IsValid = false;
             }
 
             MainView.Pr_CardsChanged();
@@ -678,13 +1206,8 @@ namespace WpfApplication1
 
         #endregion
 
-        //-----------------------------------------------------------
 
-        private void SetVersions()
-        {
-            AppVersion = Assembly.GetExecutingAssembly().GetName().Version;
-            CoreLibVersion = Assembly.GetAssembly(typeof(PokerStatisticCalc)).GetName().Version;
-        }
+        #region Pure Methods & Functions (Utils)
 
         private static Card[] GetAllCards()
         {
@@ -739,24 +1262,7 @@ namespace WpfApplication1
             }
         }
 
-        private void SetGlobalKeyHooker()
-        {
-            _globalKeyHooker = new KeyInterceptor();
-            _globalKeyHooker.SetHook(GlobalKeyboardHook);
-        }
-
-        private void DisposeGlobalKeyHooker()
-        {
-            if (_globalKeyHooker == null)
-            {
-                return;
-            }
-
-            _globalKeyHooker.RemoveHook();
-            _globalKeyHooker = null;
-        }
-
-        private Tuple<Card, Card> ParseLast2CardsFromLogFile(string s)
+        private static Tuple<Card, Card> ParseLast2CardsFromLogFile(string s)
         {
             if (s.IsNullOrEmptyStr())
             {
@@ -813,13 +1319,13 @@ namespace WpfApplication1
             }
             s2 = s2.Trim();
 
-            Card c1 = ParseCardSpecial(s1);
-            Card c2 = ParseCardSpecial(s2);
+            Card c1 = ParseCardInLogFileFormat(s1);
+            Card c2 = ParseCardInLogFileFormat(s2);
 
             return Tuple.Create(c1, c2);
         }
 
-        private Card ParseCardSpecial(string s)
+        private static Card ParseCardInLogFileFormat(string s)
         {
             string value = new string(s.Take(s.Length - 1).ToArray());
             char suit = s[s.Length - 1];
@@ -875,7 +1381,7 @@ namespace WpfApplication1
             return new Card(cardSuit, cardValue);
         }
 
-        private BitmapImage GetCardImage(System.Drawing.Bitmap cardImages, CardSuit cardSuit, CardValue cardValue)
+        private static BitmapImage GetCardImage(System.Drawing.Bitmap cardImages, CardSuit cardSuit, CardValue cardValue)
         {
             int topx = 0;
             int topy = 0;
@@ -962,28 +1468,15 @@ namespace WpfApplication1
             return bi;
         }
 
-        private Dictionary<Card, BitmapImage> BuildCardImages()
+        // parse convert cards to/from UI
+        private static Card[] ParseCardsFromCardsInput(string s)
         {
-            Card[] cards = GetAllCards();
-
-            System.Drawing.Bitmap cardImagesBitmap = Properties.Resources.cardfaces;
-
-            var cardImages = new Dictionary<Card, BitmapImage>(CardComparer.Default);
-            foreach (Card card in cards)
-            {
-                BitmapImage bi = GetCardImage(cardImagesBitmap, card.Suit, card.Value);
-                cardImages[card] = bi;
-            }
-
-            return cardImages;
-        }
-
-        private static Card[] ParseCards(string s)
-        {
-            if (s.IsNullOrEmptyStr())
+            if (s.IsNullOrWhiteSpaceStr())
             {
                 return null;
             }
+
+            s = s.Replace(" ", string.Empty);
 
             int count = s.Length;
             if (count % 2 == 1)
@@ -1001,103 +1494,29 @@ namespace WpfApplication1
             return cards.ToArray();
         }
 
-        private static string ConvertCardsToStr(Card[] cards)
+        private static string ConvertCardsToCardsInputStr(Card[] cards)
         {
             if (cards.IsNullOrEmpty())
             {
                 return null;
             }
 
-            return string.Join(string.Empty, cards.Select(x => CardUtils.ConvertToString(x)));
+            return string.Join(" ", cards.Select(x => ChangeRegisterCardString(CardUtils.ConvertToString(x))));
         }
+        //
 
-        private void GlobalKeyboardHook(int key)
+        private static Dictionary<Card, BitmapImage> BuildCardImages(System.Drawing.Bitmap cardImagesBitmap)
         {
-            char ch = (char)key;
-            try
-            {
-                GlobalKeyboardHookHandler(ch);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-            }
-        }
+            Card[] cards = GetAllCards();
 
-        private void GlobalKeyboardHookHandler(char ch)
-        {
-            if (MainView.IsActive)
+            var cardImages = new Dictionary<Card, BitmapImage>(CardComparer.Default);
+            foreach (Card card in cards)
             {
-                return;
+                BitmapImage bi = GetCardImage(cardImagesBitmap, card.Suit, card.Value);
+                cardImages[card] = bi;
             }
 
-            if (!IsWatchGlobalKeys)
-            {
-                return;
-            }
-
-            ch = char.ToLower(ch);
-
-            int i;
-            bool b = int.TryParse(ch.ToString(), out i);
-
-            if (b)
-            {
-                EnemyPlayerCount = i;
-                return;
-            }
-
-            if (ch == MainWindowPr.ExternalInput_StartSimulation)
-            {
-                StartSimulation();
-                return;
-            }
-
-            if (ch == MainWindowPr.ExternalInput_StopSimulation)
-            {
-                _cancelTokenSource.Cancel();
-                return;
-            }
-
-            if (ch == MainWindowPr.ExternalInput_GetCardsFromLogFile)
-            {
-                Task.Factory.StartNew(
-                    () =>
-                    {
-                        try
-                        {
-                            HandleLogFileCards();
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.LogException(ex);
-                        }
-                    });
-
-                return;
-            }
-        }
-
-        private void SimulationFinished(Exception ex, bool cancelled, Statistic stat, TimeSpan calcTime)
-        {
-            Calculating = false;
-            _cancelTokenSource = null;
-
-            CalculationTime = calcTime;
-            CalculatedStatistic = stat;
-
-            if (ex != null)
-            {
-                CalculatedStatistic = null;
-                Logger.LogException(ex);
-            }
-
-            if (cancelled)
-            {
-                CalculatedStatistic = null;
-            }
-
-            MainView.Pr_SimulationFinished();
+            return cardImages;
         }
 
         private static bool IsCardsNonOrderEqual(Card[] cards1, Card[] cards2)
@@ -1107,6 +1526,7 @@ namespace WpfApplication1
             return c1.SequenceEqual(c2);
         }
 
+        // Clipboard require STA (Single Thread Apartment) helpers
         private static void UseClipboardInSTA(Action action)
         {
             if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA)
@@ -1134,111 +1554,112 @@ namespace WpfApplication1
 
             return res;
         }
+        //
 
-        public void ExecOrExecAfterCancelIfCalculating(Action exec)
+        private static string ChangeRegisterCardString(string source)
         {
-            CancellationTokenSource cts = _cancelTokenSource;
-            Task calculationTask = _calculationTask;
-            if (Calculating)
+            if (source.IsNullOrWhiteSpaceStr())
             {
-                cts.Cancel();
+                return null;
+            }
+            char[] chars = source.ToCharArray();
+            for (int i = 0; i < chars.Length; i += 2)
+            {
+                chars[i] = char.ToUpperInvariant(chars[i]);
+            }
+            return new string(chars);
+        }
 
-                calculationTask.ContinueWith(
-                    (Task ancestor) =>
+        #endregion
+
+
+        #region GlobalKeyboardHook
+
+        private void SetGlobalKeyHooker()
+        {
+            _globalKeyHooker = new KeyInterceptor();
+            _globalKeyHooker.SetHook(GlobalKeyboardHook);
+        }
+
+        private void DisposeGlobalKeyHooker()
+        {
+            if (_globalKeyHooker == null)
+            {
+                return;
+            }
+
+            _globalKeyHooker.RemoveHook();
+            _globalKeyHooker = null;
+        }
+
+        private void GlobalKeyboardHook(int key)
+        {
+            char ch = (char)key;
+            try
+            {
+                GlobalKeyboardHookHandler(ch);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+        }
+
+        private void GlobalKeyboardHookHandler(char ch)
+        {
+            if (MainView.IsActive)
+            {
+                return;
+            }
+
+            if (!IsWatchGlobalKeys)
+            {
+                return;
+            }
+
+            ch = char.ToLowerInvariant(ch);
+
+            int i;
+            bool b = int.TryParse(ch.ToString(), out i);
+
+            if (b)
+            {
+                EnemyPlayerCount = i;
+                return;
+            }
+
+            if (KeyManager.IsExternalInput_StartSimulation(ch))
+            {
+                StartCalculation();
+                return;
+            }
+
+            if (KeyManager.IsExternalInput_StopSimulation(ch))
+            {
+                CancelCalculation();
+                return;
+            }
+
+            if (KeyManager.IsExternalInput_GetCardsFromLogFile(ch))
+            {
+                Task.Factory.StartNew(
+                    () =>
                     {
                         try
                         {
-                            exec();
+                            HandleLogFileCards();
                         }
                         catch (Exception ex)
                         {
                             Logger.LogException(ex);
                         }
                     });
-            }
-            else
-            {
-                exec();
-            }
-        }
 
-        private void ProcessParsedFromLogFileCards(Card c1, Card c2)
-        {
-            bool distinct = true;
-
-            if (!Cards.IsNullOrEmpty() && Cards.Length >= 2)
-            {
-                distinct = !IsCardsNonOrderEqual(new Card[] { c1, c2, }, Cards.Take(2).ToArray());
-            }
-
-            if (!distinct)
-            {
                 return;
             }
-
-            ExecOrExecAfterCancelIfCalculating(
-                () =>
-                {
-                    SetCards(new Card[] { c1, c2, });
-
-                    if (IsCalcLogCardsImmediately)
-                    {
-                        StartSimulation();
-                    }
-                });
         }
 
-        public void StartSimulation()
-        {
-            _calculationTask = null;
-            CalculationParameters = null;
-
-            try
-            {
-                CalculationParameters = GetParameters();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-                MainView.Pr_ParametersAreNotValid(ex);
-                return;
-            }
-
-            MainView.Pr_SimulationStarted();
-
-            TimeSpan calcTime = TimeSpan.Zero;
-            Statistic stat = null;
-
-            Calculating = true;
-            _cancelTokenSource = new CancellationTokenSource();
-            CalculationParameters.CancelToken = _cancelTokenSource.Token;
-
-            _calculationTask = Task.Factory.StartNew(
-               () =>
-               {
-                   var psc = new PokerStatisticCalc();
-                   var sw = Stopwatch.StartNew();
-                   stat = psc.RunExperiment(CalculationParameters);
-                   sw.Stop();
-                   calcTime = sw.Elapsed;
-               },
-               _cancelTokenSource.Token);
-
-            _calculationTask.ContinueWith(
-                (Task ancestor) =>
-                {
-                    try
-                    {
-                        SimulationFinished(ancestor.Exception, ancestor.IsCanceled, stat, calcTime);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogException(ex);
-                    }
-                });
-
-            StartMonitor_ProgressWatcher();
-        }
+        #endregion
 
 
         #region Monitors
@@ -1267,12 +1688,12 @@ namespace WpfApplication1
 
         private void LogFileMonitor()
         {
-            if (Calculating)
+            if (IsCalculating)
             {
                 return;
             }
 
-            if (!IsWatchCardsInClipboard)
+            if (!IsWatchCardsInClipboardAndLogFile)
             {
                 return;
             }
@@ -1365,7 +1786,7 @@ namespace WpfApplication1
 
         private void ClipboardMonitor()
         {
-            if (!IsWatchCardsInClipboard)
+            if (!IsWatchCardsInClipboardAndLogFile)
             {
                 return;
             }
@@ -1384,6 +1805,7 @@ namespace WpfApplication1
                 return;
             }
 
+            // extract cards string from text
             var cards = new LinkedList<char>();
 
             bool b = false;
@@ -1406,6 +1828,7 @@ namespace WpfApplication1
             }
 
             string cardsstr = new string(cards.ToArray());
+            //
 
             if (cardsstr.IsNullOrWhiteSpaceStr())
             {
@@ -1417,7 +1840,7 @@ namespace WpfApplication1
             Card[] clipboardCards = null;
             try
             {
-                clipboardCards = ParseCards(cardsstr);
+                clipboardCards = ParseCardsFromCardsInput(cardsstr);
             }
             catch (Exception ex)
             {
@@ -1430,11 +1853,11 @@ namespace WpfApplication1
                 return;
             }
 
-            ExecOrExecAfterCancelIfCalculating(
+            CancelCalculation(
                 () =>
                 {
                     SetCards(clipboardCards, true);
-                    StartSimulation();
+                    StartCalculation();
                 });
         }
 
@@ -1471,14 +1894,14 @@ namespace WpfApplication1
         {
             finish = false;
 
-            Task calcTask = _calculationTask;
-            if (calcTask == null)
+            Task calculationTask = _calculationTask;
+            if (calculationTask == null)
             {
                 finish = true;
                 return;
             }
 
-            if (calcTask.IsCompleted)
+            if (calculationTask.IsCompleted)
             {
                 finish = true;
                 return;
@@ -1495,135 +1918,6 @@ namespace WpfApplication1
             MainView.Pr_SetProgress(val);
         }
 
-
         #endregion
-
-
-        private CalculationParameters GetParameters()
-        {
-            var param = new CalculationParameters();
-
-            if (!SimulatedGamesCount_IsValid)
-            {
-                SetSimulatedGamesCount(ParamHelper.GetSimulatedGameCount());
-            }
-            param.GameNumber = SimulatedGamesCount;
-
-            if (!ParallelismLevel_IsValid)
-            {
-                SetParallelismLevel(ParamHelper.GetParallelismLevel());
-            }
-            param.ParallelLevel = ParallelismLevel;
-
-            if (!EnemyPlayerCount_IsValid)
-            {
-                SetEnemyPlayerCount(ParamHelper.GetEnemyPlayersCount());
-            }
-            param.EnemyPlayersCount = EnemyPlayerCount;
-
-            if (CalculationTimeLimitEnabled)
-            {
-                if (!CalculationTimeLimit_IsValid)
-                {
-                    SetCalculationTimeLimit(ParamHelper.GetCalculationTimeLimit());
-                }
-                param.TimeLimit = TimeSpan.FromMilliseconds(CalculationTimeLimit);
-            }
-            else
-            {
-                param.TimeLimit = null;
-            }
-
-            if (!Cards_IsValid)
-            {
-                SetCards(GetRandomHand(_rnd));
-            }
-
-            Card[] cards = Cards.ToArray();
-
-            param.PlayerCard1 = cards[0];
-            param.PlayerCard2 = cards[1];
-
-            param.Flop1 = Utility.TryGetByIndx(cards, 2);
-            param.Flop2 = Utility.TryGetByIndx(cards, 3);
-            param.Flop3 = Utility.TryGetByIndx(cards, 4);
-            param.Turn = Utility.TryGetByIndx(cards, 5);
-            param.River = Utility.TryGetByIndx(cards, 6);
-
-            return param;
-        }
-
-        private void SetCards(Card[] cards, bool add = false)
-        {
-            if (add)
-            {
-                if (!cards.IsNullOrEmpty())
-                {
-                    List<Card> res_cards;
-                    if (!Cards.IsNullOrEmpty())
-                    {
-                        res_cards = Cards.ToList();
-                    }
-                    else
-                    {
-                        res_cards = new List<Card>();
-                    }
-                    res_cards.AddRange(cards);
-                }
-            }
-            else
-            {
-                if (cards.IsNullOrEmpty())
-                {
-                    Cards = null;
-                }
-                else
-                {
-                    Cards = cards.ToArray();
-                }
-            }
-
-            Cards_IsValid = true;
-            Cards_Str = ConvertCardsToStr(Cards);
-            MainView.Pr_CardsChanged();
-        }
-
-        private void SetSimulatedGamesCount(int val)
-        {
-            SimulatedGamesCount = val;
-            SimulatedGamesCount_IsValid = true;
-            SimulatedGamesCount_Str = val.ToString();
-            MainView.Pr_SimulatedGamesCount_Changed();
-        }
-
-        private void SetParallelismLevel(int val)
-        {
-            ParallelismLevel = val;
-            ParallelismLevel_IsValid = true;
-            ParallelismLevel_Str = val.ToString();
-            MainView.Pr_ParallelismLevel_Changed();
-        }
-
-        private void SetEnemyPlayerCount(int val)
-        {
-            EnemyPlayerCount = val;
-            EnemyPlayerCount_IsValid = true;
-            EnemyPlayerCount_Str = val.ToString();
-            MainView.Pr_EnemyPlayerCount_Changed();
-        }
-
-        private void SetCalculationTimeLimit(double val)
-        {
-            CalculationTimeLimit = val;
-            CalculationTimeLimit_IsValid = true;
-            CalculationTimeLimit_Str = val.ToString(CultureInfo.InvariantCulture);
-            MainView.Pr_CalculationTimeLimit_Changed();
-        }
-
-        private void SetCalculationTimeLimitEnabled(bool val)
-        {
-            CalculationTimeLimitEnabled = val;
-            MainView.Pr_CalculationTimeLimitEnabled_Changed();
-        }
     }
 }

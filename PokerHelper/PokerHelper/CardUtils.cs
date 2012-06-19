@@ -68,8 +68,8 @@ namespace PokerHelper
 
         public static Card ParseCard(string s, int indx = 0)
         {
-            char value = char.ToLower(s[indx]);
-            char suit = char.ToLower(s[indx + 1]);
+            char value = char.ToLowerInvariant(s[indx]);
+            char suit = char.ToLowerInvariant(s[indx + 1]);
 
             CardSuit cardSuit = ParseSuit(suit);
             CardValue cardValue = ParseValue(value);
@@ -81,7 +81,7 @@ namespace PokerHelper
         {
             if (!char.IsLower(c))
             {
-                c = char.ToLower(c);
+                c = char.ToLowerInvariant(c);
             }
 
             switch (c)
@@ -121,7 +121,7 @@ namespace PokerHelper
         {
             if (!char.IsLower(c))
             {
-                c = char.ToLower(c);
+                c = char.ToLowerInvariant(c);
             }
 
             switch (c)

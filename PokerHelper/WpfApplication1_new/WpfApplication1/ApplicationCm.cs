@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using PokerHelper;
 
 namespace WpfApplication1
@@ -12,7 +14,7 @@ namespace WpfApplication1
         private MainWindowPr MainWindow;
 
 
-        public void Start()
+        internal void Start()
         {
             MainWindow = new MainWindowPr();
             MainWindow.Application = this;

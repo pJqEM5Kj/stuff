@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -107,6 +108,18 @@ namespace WpfApplication1
             }
 
             return defaultValue;
+        }
+
+        public static NumberStyles GetDefaultDoubleParseStyles()
+        {
+            NumberStyles defaultDoubleParseStyle = NumberStyles.AllowLeadingWhite
+                | NumberStyles.AllowTrailingWhite
+                | NumberStyles.AllowLeadingSign
+                | NumberStyles.AllowDecimalPoint
+                | NumberStyles.AllowThousands
+                | NumberStyles.AllowExponent;
+
+            return defaultDoubleParseStyle;
         }
     }
 }
