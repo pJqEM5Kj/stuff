@@ -79,7 +79,7 @@ namespace PokerHelper
                 semaphore.Wait();
                 SimulatedGamesCount++;
 
-                Task.Factory.StartNew(
+                Action action =
                     () =>
                     {
                         try
@@ -91,7 +91,16 @@ namespace PokerHelper
                             semaphore.Release();
                             countdown.Signal();
                         }
-                    });
+                    };
+
+                if (parallelLevel == 1)
+                {
+                    action();
+                }
+                else
+                {
+                    Task.Factory.StartNew(action);
+                }
             }
 
             countdown.Wait();

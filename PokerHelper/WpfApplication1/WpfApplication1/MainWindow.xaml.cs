@@ -28,14 +28,14 @@ namespace WpfApplication1
         internal MainWindowPr Presenter { get; set; }
 
         //
-        internal const int enemyPlayerCount_tb_SelectTime = 300; //ms
+        private readonly TimeSpan enemyPlayerCount_tb_SelectTime = TimeSpan.FromMilliseconds(300);
+        private readonly Brush _invalidCards_color = Brushes.Red;
 
         //
         private System.Timers.Timer _enemyPlayerCount_tb_TextChanged_Timer;
         private Control _lastFocusedElement;
         private int _ignore_cards_tb_TextChanged = 0;
         private Brush _validCards_color;
-        private readonly Brush _invalidCards_color = Brushes.Red;
 
 
         public MainWindow()
@@ -64,7 +64,7 @@ namespace WpfApplication1
             enemyPlayerCount_tb.GotKeyboardFocus += enemyPlayerCount_tb_GotKeyboardFocus;
             enemyPlayerCount_tb.TextChanged += enemyPlayerCount_tb_TextChanged;
 
-            _enemyPlayerCount_tb_TextChanged_Timer = new System.Timers.Timer(enemyPlayerCount_tb_SelectTime);
+            _enemyPlayerCount_tb_TextChanged_Timer = new System.Timers.Timer(enemyPlayerCount_tb_SelectTime.TotalMilliseconds);
             _enemyPlayerCount_tb_TextChanged_Timer.Elapsed += enemyPlayerCount_tb_TextChanged_Timer_Elapsed;
 
             cards_tb.TextChanged += cards_tb_TextChanged;
@@ -769,7 +769,7 @@ namespace WpfApplication1
             MainView.Pr_CalculationStarted();
 
             TimeSpan calcTime = TimeSpan.Zero;
-            Statistic stat = null;
+            Statistic statistic = null;
 
             IsCalculating = true;
             _cancelTokenSource = new CancellationTokenSource();
@@ -778,9 +778,8 @@ namespace WpfApplication1
             _calculationTask = Task.Factory.StartNew(
                () =>
                {
-                   var psc = new PokerStatisticCalc();
                    var sw = Stopwatch.StartNew();
-                   stat = psc.RunExperiment(CalculationParameters);
+                   statistic = Application.CalculatePokerStatistic(CalculationParameters);
                    sw.Stop();
                    calcTime = sw.Elapsed;
                },
@@ -791,7 +790,7 @@ namespace WpfApplication1
                 {
                     try
                     {
-                        CalculationFinished(ancestor.Exception, ancestor.IsCanceled, stat, calcTime);
+                        CalculationFinished(ancestor.Exception, ancestor.IsCanceled, statistic, calcTime);
                     }
                     catch (Exception ex)
                     {
@@ -802,7 +801,7 @@ namespace WpfApplication1
             StartMonitor_ProgressWatcher();
         }
 
-        private void CalculationFinished(Exception ex, bool cancelled, Statistic stat, TimeSpan calcTime)
+        private void CalculationFinished(Exception ex, bool cancelled, Statistic statistic, TimeSpan calculationTime)
         {
             IsCalculating = false;
             _cancelTokenSource = null;
@@ -824,8 +823,8 @@ namespace WpfApplication1
             }
             else
             {
-                CalculatedStatistic = stat;
-                CalculationTime = calcTime;
+                CalculatedStatistic = statistic;
+                CalculationTime = calculationTime;
                 CalculationResult = CalculationResult.Ok;
             }
 
