@@ -1376,7 +1376,7 @@ namespace WpfApplication1
             Card c1 = ParseCardInLogFileFormat(s1);
             Card c2 = ParseCardInLogFileFormat(s2);
 
-            return Tuple.Create(c1, c2);
+            return Tuple.Create(c2, c1);
         }
 
         private static Card ParseCardInLogFileFormat(string s)
@@ -1808,7 +1808,7 @@ namespace WpfApplication1
                     return;
                 }
 
-                ProcessParsedFromLogFileCards(cards.Item2, cards.Item1);
+                ProcessParsedFromLogFileCards(cards.Item1, cards.Item2);
             }
             catch (Exception ex)
             {
