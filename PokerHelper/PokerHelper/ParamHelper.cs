@@ -9,12 +9,22 @@ namespace PokerHelper
     {
         public static int GetParallelismLevel()
         {
-            return (int)Math.Round(Environment.ProcessorCount * 2.5);
+            if (Environment.ProcessorCount > 1)
+            {
+                return (int)Math.Round(Environment.ProcessorCount * 2.5);
+            }
+
+            return 1;
         }
 
         public static int GetSimulatedGameCount()
         {
-            return 50000;
+            if (Environment.ProcessorCount > 1)
+            {
+                return 50000;
+            }
+
+            return 23000;
         }
 
         public static int GetEnemyPlayersCount()

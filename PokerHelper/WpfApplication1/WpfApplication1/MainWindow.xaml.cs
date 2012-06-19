@@ -1092,14 +1092,14 @@ namespace WpfApplication1
 
             KeyManager = new MainWindowKeyManager();
 
-            SetCards(null);
+            CardImages = BuildCardImages(Properties.Resources.cardfaces);
+
+            SetCards(GetRandomHand(_rnd));
             SetParallelismLevel(ParamHelper.GetParallelismLevel());
             SetSimulatedGamesCount(ParamHelper.GetSimulatedGameCount());
             SetEnemyPlayerCount(ParamHelper.GetEnemyPlayersCount());
             SetCalculationTimeLimitEnabled(ParamHelper.GetCalculationTimeLimitEnabled());
             SetCalculationTimeLimit(ParamHelper.GetCalculationTimeLimit());
-
-            CardImages = BuildCardImages(Properties.Resources.cardfaces);
 
             Cards = GetRandomHand(_rnd);
 
