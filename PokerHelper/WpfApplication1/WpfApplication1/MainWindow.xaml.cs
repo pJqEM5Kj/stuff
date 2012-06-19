@@ -52,6 +52,15 @@ namespace WpfApplication1
             topMost_ckb.Checked += topMost_ckb_Checked;
             topMost_ckb.Unchecked += topMost_ckb_Unchecked;
 
+            watchCards_ckb.Checked += watchCards_ckb_Checked;
+            watchCards_ckb.Unchecked += watchCards_ckb_Unchecked;
+
+            watchKeys_ckb.Checked += watchKeys_ckb_Checked;
+            watchKeys_ckb.Unchecked += watchKeys_ckb_Unchecked;
+
+            calcLogCardsNow_ckb.Checked += calcLogCardsNow_ckb_Checked;
+            calcLogCardsNow_ckb.Unchecked += calcLogCardsNow_ckb_Unchecked;
+
             parallelismLevel_tb.KeyDown += parallelismLevel_tb_KeyDown;
 
             simulatedGamesCount_tb.KeyDown += simulatedGamesCount_tb_KeyDown;
@@ -111,7 +120,7 @@ namespace WpfApplication1
                 return;
             }
 
-            Presenter.View_CardsInputChanged(cards_tb.Text);
+            Presenter.View_CardsInput_Changed(cards_tb.Text);
         }
 
         private void cards_tb_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -204,6 +213,36 @@ namespace WpfApplication1
         private void topMost_ckb_Checked(object sender, RoutedEventArgs e)
         {
             Topmost = true;
+        }
+
+        private void calcLogCardsNow_ckb_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Presenter.View_IsCalcLogCardsImmediately_Changed(calcLogCardsNow_ckb.IsChecked ?? false);
+        }
+
+        private void calcLogCardsNow_ckb_Checked(object sender, RoutedEventArgs e)
+        {
+            Presenter.View_IsCalcLogCardsImmediately_Changed(calcLogCardsNow_ckb.IsChecked ?? false);
+        }
+
+        private void watchKeys_ckb_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Presenter.View_IsWatchGlobalKeys_Changed(watchKeys_ckb.IsChecked ?? false);
+        }
+
+        private void watchKeys_ckb_Checked(object sender, RoutedEventArgs e)
+        {
+            Presenter.View_IsWatchGlobalKeys_Changed(watchKeys_ckb.IsChecked ?? false);
+        }
+
+        private void watchCards_ckb_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Presenter.View_IsWatchCardsInClipboardAndLogFile_Changed(watchCards_ckb.IsChecked ?? false);
+        }
+
+        private void watchCards_ckb_Checked(object sender, RoutedEventArgs e)
+        {
+            Presenter.View_IsWatchCardsInClipboardAndLogFile_Changed(watchCards_ckb.IsChecked ?? false);
         }
 
         #endregion
@@ -903,6 +942,7 @@ namespace WpfApplication1
                         res_cards = new List<Card>();
                     }
                     res_cards.AddRange(cards);
+                    Cards = res_cards.ToArray();
                 }
             }
             else
@@ -1145,7 +1185,7 @@ namespace WpfApplication1
             }
         }
 
-        internal void View_CardsInputChanged(string val)
+        internal void View_CardsInput_Changed(string val)
         {
             string correctedVal = null;
 
@@ -1201,6 +1241,21 @@ namespace WpfApplication1
             }
 
             MainView.Pr_CardsChanged();
+        }
+
+        internal void View_IsWatchCardsInClipboardAndLogFile_Changed(bool b)
+        {
+            IsWatchCardsInClipboardAndLogFile = b;
+        }
+
+        internal void View_IsCalcLogCardsImmediately_Changed(bool b)
+        {
+            IsCalcLogCardsImmediately = b;
+        }
+
+        internal void View_IsWatchGlobalKeys_Changed(bool b)
+        {
+            IsWatchGlobalKeys = b;
         }
 
         #endregion
@@ -1623,7 +1678,7 @@ namespace WpfApplication1
 
             if (b)
             {
-                EnemyPlayerCount = i;
+                SetEnemyPlayerCount(i);
                 return;
             }
 
@@ -1703,7 +1758,7 @@ namespace WpfApplication1
                 return;
             }
 
-            if (_logFileSize == null || fi.Length == _logFileSize.Value)
+            if (_logFileSize != null && fi.Length == _logFileSize.Value)
             {
                 return;
             }
@@ -1753,7 +1808,7 @@ namespace WpfApplication1
                     return;
                 }
 
-                ProcessParsedFromLogFileCards(cards.Item1, cards.Item2);
+                ProcessParsedFromLogFileCards(cards.Item2, cards.Item1);
             }
             catch (Exception ex)
             {
