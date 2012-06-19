@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -25,6 +26,11 @@ namespace WpfApplication1
         public static bool IsNullOrEmptyStr(this string s)
         {
             return string.IsNullOrEmpty(s);
+        }
+
+        public static bool IsNullOrWhiteSpaceStr(this string s)
+        {
+            return string.IsNullOrWhiteSpace(s);
         }
 
         public static bool IsNullOrEmpty(this IEnumerable collection)
@@ -92,6 +98,28 @@ namespace WpfApplication1
             }
 
             return new InvalidOperationException("Enum value '{0}' is unknown.".FormatStr(enumValue));
+        }
+
+        public static T TryGetByIndx<T>(IList<T> collection, int indx, T defaultValue = default(T))
+        {
+            if (collection.Count > indx)
+            {
+                return collection[indx];
+            }
+
+            return defaultValue;
+        }
+
+        public static NumberStyles GetDefaultDoubleParseStyles()
+        {
+            NumberStyles defaultDoubleParseStyle = NumberStyles.AllowLeadingWhite
+                | NumberStyles.AllowTrailingWhite
+                | NumberStyles.AllowLeadingSign
+                | NumberStyles.AllowDecimalPoint
+                | NumberStyles.AllowThousands
+                | NumberStyles.AllowExponent;
+
+            return defaultDoubleParseStyle;
         }
     }
 }

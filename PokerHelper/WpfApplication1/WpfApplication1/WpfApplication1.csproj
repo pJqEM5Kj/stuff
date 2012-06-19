@@ -56,11 +56,14 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ApplicationCm.cs" />
+    <Compile Include="CalculationResult.cs" />
     <Compile Include="KeyInterceptor.cs" />
     <Compile Include="Logger.cs" />
-    <Compile Include="RenderWaiting.xaml.cs">
+    <Compile Include="Controls\RenderWaiting.xaml.cs">
       <DependentUpon>RenderWaiting.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MainWindowKeyManager.cs" />
     <Compile Include="Utility.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -75,7 +78,7 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="RenderWaiting.xaml">
+    <Page Include="Controls\RenderWaiting.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -97,6 +100,7 @@
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -105,7 +109,7 @@
     <AppDesigner Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="cardfaces.png" />
+    <None Include="Resources\cardfaces.png" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\PokerHelper\PokerHelper.csproj">

@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -17,316 +18,140 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using PokerHelper;
 
 namespace WpfApplication1
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
-        //@!mov todo:
-        // deep refactor
+        internal MainWindowPr Presenter { get; set; }
 
-        private const int ActivationTimeout = 50; //ms
-        private const int enemyPlayerCount_tb_SelectTime = 300; //ms
-        private const int DefaultSimulatedGameCount = 50000;
-        private const int DefaultEnemyPlayersCount = 1;
-        private const int DefaultTimeLimit = 1700; //ms
-        private const int ClipboardMonitorSleep = 100; //ms
-        private const int FileMonitorSleep = 600; //ms
-        private const int ProgressWatcherSleep = 100; //ms
-        private const string AppVersionFormatString = "app v{0}";
-        private const string LibVersionFormatString = "lib v{0}";
-        private const char ExternalInput_StartSimulation = 'q';
-        private const char ExternalInput_StopSimulation = 'w';
-        private const char ExternalInput_GetCardsFromLogFile = 'a';
-        private const string LogFilePath = @"C:\Program Files\PokerStars\PokerStars.log.0";
+        //
+        internal const int enemyPlayerCount_tb_SelectTime = 300; //ms
 
-        private readonly Logger Logger = new Logger();
-
-        private KeyInterceptor keyHooker;
-        private System.Timers.Timer enemyPlayerCount_tb_TextChanged_Timer;
-        private Dictionary<Card, BitmapImage> CardImages;
-        private Random rnd = new Random(Guid.NewGuid().GetHashCode());
-        private Control lastFocusedElement;
-        private bool ignore_cards_tb_TextChanged = false;
-
-        private long logFileSize;
-        private string clipboardTxt;
-
-        private bool Calculating;
-        private CancellationTokenSource CancelTokenSource;
-        private CalculationParameters ExpParams = null;
-        private Task CalculationTask;
+        //
+        private System.Timers.Timer _enemyPlayerCount_tb_TextChanged_Timer;
+        private Control _lastFocusedElement;
+        private int _ignore_cards_tb_TextChanged = 0;
+        private Brush _validCards_color;
+        private readonly Brush _invalidCards_color = Brushes.Red;
 
 
         public MainWindow()
         {
             InitializeComponent();
 
+            //
+            Loaded += MainWindow_Loaded;
+            KeyDown += MainWindow_KeyDown;
+            Closed += MainWindow_Closed;
+            Dispatcher.UnhandledException += Dispatcher_UnhandledException;
+
+            //
             topMost_ckb.Checked += topMost_ckb_Checked;
             topMost_ckb.Unchecked += topMost_ckb_Unchecked;
 
-            enemyPlayerCount_tb.KeyDown += enemyPlayerCount_tb_KeyDown;
             parallelismLevel_tb.KeyDown += parallelismLevel_tb_KeyDown;
+
             simulatedGamesCount_tb.KeyDown += simulatedGamesCount_tb_KeyDown;
-            cards_tb.KeyDown += cards_tb_KeyDown;
-            cards_tb.PreviewKeyDown += cards_tb_PreviewKeyDown;
+
             timeLimit_tb.KeyDown += timeLimit_tb_KeyDown;
 
             runSimulation_btn.Click += runSimulation_btn_Click;
 
+            enemyPlayerCount_tb.KeyDown += enemyPlayerCount_tb_KeyDown;
             enemyPlayerCount_tb.GotKeyboardFocus += enemyPlayerCount_tb_GotKeyboardFocus;
             enemyPlayerCount_tb.TextChanged += enemyPlayerCount_tb_TextChanged;
 
-            enemyPlayerCount_tb_TextChanged_Timer = new System.Timers.Timer(enemyPlayerCount_tb_SelectTime);
-            enemyPlayerCount_tb_TextChanged_Timer.Elapsed += enemyPlayerCount_tb_TextChanged_Timer_Elapsed;
+            _enemyPlayerCount_tb_TextChanged_Timer = new System.Timers.Timer(enemyPlayerCount_tb_SelectTime);
+            _enemyPlayerCount_tb_TextChanged_Timer.Elapsed += enemyPlayerCount_tb_TextChanged_Timer_Elapsed;
 
             cards_tb.TextChanged += cards_tb_TextChanged;
-
-            Loaded += MainWindow_Loaded;
-            Deactivated += MainWindow_Deactivated;
-            KeyDown += MainWindow_KeyDown;
-
-            Closed += MainWindow_Closed;
-
-            Dispatcher.UnhandledException += Dispatcher_UnhandledException;
+            cards_tb.KeyDown += cards_tb_KeyDown;
+            cards_tb.PreviewKeyDown += cards_tb_PreviewKeyDown;
         }
 
 
-        private void Dispatcher_UnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+        #region MainView Events
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            DisposeKeyHooker();
-        }
+            InitialPreparations_Preview();
 
-        private void MainWindow_Closed(object sender, EventArgs e)
-        {
-            DisposeKeyHooker();
-        }
+            Presenter.View_Loaded();
 
-        private void cards_tb_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            bool shiftDown = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
-
-            if (shiftDown && (e.Key == Key.Delete || e.Key == Key.Back))
-            {
-                cards_tb.Clear();
-            }
-
-            if (shiftDown && e.Key == Key.Enter)
-            {
-                RandomCards();
-                e.Handled = true;
-            }
-        }
-
-        private void timeLimit_tb_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter)
-            {
-                StartSimulation();
-            }
+            InitialPreparations();
         }
 
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
-            CancellationTokenSource cts = CancelTokenSource;
-            if (Calculating && e.Key == Key.Escape)
-            {
-                cts.Cancel();
-            }
+            Presenter.View_KeyDown(e);
         }
 
-        private void MainWindow_Deactivated(object sender, EventArgs e)
+        private void MainWindow_Closed(object sender, EventArgs e)
         {
-            bool reactivateWindow = false;
-
-            if (Keyboard.IsKeyToggled(Key.CapsLock))
-            {
-                reactivateWindow = true;
-            }
-
-            if (reactivateWindow && (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
-            {
-                reactivateWindow = false;
-            }
-
-            if (reactivateWindow)
-            {
-                Dispatcher.BeginInvoke(new Action(ActivateWnd));
-            }
+            Presenter.View_Closed();
         }
 
-        private void ActivateWnd()
+        private void Dispatcher_UnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
-            Thread.Sleep(ActivationTimeout);
-            if (!Activate())
-            {
-                Dispatcher.BeginInvoke(new Action(ActivateWnd));
-            }
+            Presenter.View_Dispatcher_UnhandledException(e);
         }
+
+        #endregion
+
+
+        #region Events
 
         private void cards_tb_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (ignore_cards_tb_TextChanged)
+            if (_ignore_cards_tb_TextChanged > 0)
             {
                 return;
             }
-            ignore_cards_tb_TextChanged = true;
 
-            string ss = null;
-            int caretIndx = cards_tb.CaretIndex;
-            for (int i = 0; i < cards_tb.Text.Length; i++)
-            {
-                ss += (i % 2 == 0) ? char.ToUpper(cards_tb.Text[i]) : char.ToLower(cards_tb.Text[i]);
-            }
-            cards_tb.Text = ss;
-            cards_tb.CaretIndex = caretIndx;
-            ignore_cards_tb_TextChanged = false;
+            Presenter.View_CardsInputChanged(cards_tb.Text);
+        }
 
-            try
+        private void cards_tb_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            bool handled;
+            Presenter.View_CardsActivity(e, out handled);
+            if (handled)
             {
-                Card[] cards = GetCards(cards_tb.Text);
-                DisplayCards(cards);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-
-                card1_img.Source = null;
-                card2_img.Source = null;
-                card3_img.Source = null;
-                card4_img.Source = null;
-                card5_img.Source = null;
-                card6_img.Source = null;
-                card7_img.Source = null;
+                e.Handled = true;
             }
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private void enemyPlayerCount_tb_TextChanged_Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            SetVersions();
+            _enemyPlayerCount_tb_TextChanged_Timer.Stop();
 
-            cards_tb.Focus();
-
-            parallelismLevel_tb.Text = ParamHelper.GetParallelismLevel().ToString();
-            simulatedGamesCount_tb.Text = DefaultSimulatedGameCount.ToString();
-            enemyPlayerCount_tb.Text = DefaultEnemyPlayersCount.ToString();
-            timeLimit_ckb.IsChecked = true;
-            timeLimit_tb.Text = Math.Round(DefaultTimeLimit / 1000d, 2).ToString(CultureInfo.InvariantCulture);
-
-            CardImages = BuildCardImages();
-
-            cards_tb.Text = string.Join(string.Empty, GetRandomHand().Select(x => CardUtils.ConvertToString(x)));
-
-            StartMonitorLogFile();
-            StartMonitorClipboard();
-
-            keyHooker = new KeyInterceptor();
-            keyHooker.SetHook(KeyboardHook);
-        }
-
-        private void KeyboardHook(int key)
-        {
-            try
-            {
-                Dispatcher.BeginInvoke(new Action(
-                    () =>
+            Dispatcher.Invoke(new Action(
+                () =>
+                {
+                    if (enemyPlayerCount_tb.IsFocused
+                        && Presenter.EnemyPlayerCount_IsValid)
                     {
-                        char ch = (char)key;
-                        try
-                        {
-                            KeyboardHookProcessing(ch);
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.LogException(ex);
-                        }
-                    }));
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-            }
+                        enemyPlayerCount_tb.SelectAll();
+                        enemyPlayerCount_tb.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                    }
+                }));
         }
 
-        private void KeyboardHookProcessing(char ch)
+        private void timeLimit_tb_KeyDown(object sender, KeyEventArgs e)
         {
-            if (IsActive)
+            if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                return;
-            }
-
-            if (!(watchKeys_ckb.IsChecked ?? false))
-            {
-                return;
-            }
-
-            ch = char.ToLower(ch);
-
-            int i;
-            bool b = int.TryParse(ch.ToString(), out i);
-
-            if (b)
-            {
-                enemyPlayerCount_tb.Text = i.ToString();
-                return;
-            }
-
-            if (ch == ExternalInput_StartSimulation)
-            {
-                StartSimulation();
-                return;
-            }
-
-            if (ch == ExternalInput_StopSimulation)
-            {
-                CancelTokenSource.Cancel();
-                return;
-            }
-
-            if (ch == ExternalInput_GetCardsFromLogFile)
-            {
-                Task.Factory.StartNew(
-                    () =>
-                    {
-                        try
-                        {
-                            LogFile_Changed();
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.LogException(ex, "Get cards on request failed.");
-                        }
-                    });
-
-                return;
+                Presenter.StartCalculation();
             }
         }
 
         private void enemyPlayerCount_tb_TextChanged(object sender, TextChangedEventArgs e)
         {
-            enemyPlayerCount_tb_TextChanged_Timer.Stop();
-            enemyPlayerCount_tb_TextChanged_Timer.Start();
-        }
-
-        private void enemyPlayerCount_tb_TextChanged_Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            enemyPlayerCount_tb_TextChanged_Timer.Stop();
-
-            Dispatcher.Invoke(new Action(
-                () =>
-                {
-                    enemyPlayerCount_tb.SelectAll();
-
-                    if (enemyPlayerCount_tb.IsFocused
-                        && !string.IsNullOrWhiteSpace(enemyPlayerCount_tb.Text))
-                    {
-                        enemyPlayerCount_tb.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
-                    }
-                }));
+            _enemyPlayerCount_tb_TextChanged_Timer.Stop();
+            _enemyPlayerCount_tb_TextChanged_Timer.Start();
         }
 
         private void enemyPlayerCount_tb_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
@@ -336,38 +161,38 @@ namespace WpfApplication1
 
         private void runSimulation_btn_Click(object sender, RoutedEventArgs e)
         {
-            StartSimulation();
+            Presenter.StartCalculation();
         }
 
         private void cards_tb_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
+            if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                StartSimulation();
+                Presenter.StartCalculation();
             }
         }
 
         private void simulatedGamesCount_tb_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
+            if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                StartSimulation();
+                Presenter.StartCalculation();
             }
         }
 
         private void parallelismLevel_tb_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
+            if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                StartSimulation();
+                Presenter.StartCalculation();
             }
         }
 
         private void enemyPlayerCount_tb_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Enter)
+            if (Presenter.KeyManager.IsDefaultStartSimulationKey(e))
             {
-                StartSimulation();
+                Presenter.StartCalculation();
             }
         }
 
@@ -381,285 +206,1065 @@ namespace WpfApplication1
             Topmost = true;
         }
 
-        private void DisposeKeyHooker()
+        #endregion
+
+
+        #region From Presenter
+
+        internal void Pr_ParallelismLevel_Changed()
         {
-            if (keyHooker == null)
+            EnsureUICall(
+                () =>
+                {
+                    parallelismLevel_tb.Text = Presenter.ParallelismLevel_Str;
+                });
+        }
+
+        internal void Pr_SimulatedGamesCount_Changed()
+        {
+            EnsureUICall(
+                () =>
+                {
+                    simulatedGamesCount_tb.Text = Presenter.SimulatedGamesCount_Str;
+                });
+        }
+
+        internal void Pr_EnemyPlayerCount_Changed()
+        {
+            EnsureUICall(
+                () =>
+                {
+                    enemyPlayerCount_tb.Text = Presenter.EnemyPlayerCount_Str;
+                });
+        }
+
+        internal void Pr_CalculationTimeLimitEnabled_Changed()
+        {
+            EnsureUICall(
+                () =>
+                {
+                    timeLimit_ckb.IsChecked = Presenter.CalculationTimeLimitEnabled;
+                });
+        }
+
+        internal void Pr_CalculationTimeLimit_Changed()
+        {
+            EnsureUICall(
+                () =>
+                {
+                    timeLimit_tb.Text = Presenter.CalculationTimeLimit_Str;
+                });
+        }
+
+        internal void Pr_CalculationStarted()
+        {
+            EnsureUICall(
+                () =>
+                {
+                    _lastFocusedElement = Keyboard.FocusedElement as Control;
+
+                    mainGrid.IsEnabled = false;
+                    waiter.Visibility = Visibility.Visible;
+
+                    progress_bar.Visibility = Visibility.Visible;
+                    progress_bar.Value = 0;
+
+                    progress_bar.Minimum = 0;
+                    progress_bar.Maximum = Presenter.CalculationParameters.GameNumber;
+                });
+        }
+
+        internal void Pr_CalculationFinished()
+        {
+            EnsureUICall(
+                () =>
+                {
+                    mainGrid.IsEnabled = true;
+                    waiter.Visibility = Visibility.Hidden;
+                    progress_bar.Visibility = Visibility.Collapsed;
+
+                    if (_lastFocusedElement != null)
+                    {
+                        _lastFocusedElement.Focus();
+                        _lastFocusedElement = null;
+                    }
+
+                    switch (Presenter.CalculationResult)
+                    {
+                        case CalculationResult.Ok:
+                            ShowCalculatedStatistic_Ok();
+                            break;
+
+                        case CalculationResult.Cancelled:
+                            result1_tb.Text = "Cancelled.";
+                            result2_tb.Text = string.Empty;
+                            result3_tb.Text = string.Empty;
+                            break;
+
+                        case CalculationResult.Failed:
+                            result1_tb.Text = "Error occured:" + Environment.NewLine + Presenter.CalculationError.ToString();
+                            result2_tb.Text = string.Empty;
+                            result3_tb.Text = string.Empty;
+                            break;
+
+                        default:
+                            throw Utility.GetUnknownEnumValueException(Presenter.CalculationResult);
+                    }
+                });
+        }
+
+        internal void Pr_ParametersAreNotValid(Exception ex)
+        {
+            EnsureUICall(
+                () =>
+                {
+                    result1_tb.Text = "Parameters are not valid:" + Environment.NewLine + ex.ToString();
+                    result2_tb.Text = string.Empty;
+                    result3_tb.Text = string.Empty;
+                });
+        }
+
+        internal void Pr_SetProgress(int value)
+        {
+            EnsureUICall(
+                () =>
+                {
+                    progress_bar.Value = value;
+                });
+        }
+
+        internal void Pr_CorrectCardsString(string val)
+        {
+            EnsureUICall(
+                () =>
+                {
+                    _ignore_cards_tb_TextChanged++;
+                    try
+                    {
+                        int caretIndx = cards_tb.CaretIndex;
+                        cards_tb.Text = val;
+                        cards_tb.CaretIndex = caretIndx;
+                    }
+                    finally
+                    {
+                        _ignore_cards_tb_TextChanged--;
+                    }
+                });
+        }
+
+        internal void Pr_CardsChanged()
+        {
+            EnsureUICall(
+                () =>
+                {
+                    _ignore_cards_tb_TextChanged++;
+                    try
+                    {
+                        cards_tb.Text = Presenter.Cards_Str;
+
+                        if (Presenter.Cards_IsValid)
+                        {
+                            cards_lbl.Foreground = _validCards_color;
+                        }
+                        else
+                        {
+                            cards_lbl.Foreground = _invalidCards_color;
+                        }
+
+                        if (Presenter.Cards_IsValid)
+                        {
+                            DisplayCards(Presenter.Cards);
+                        }
+                        else
+                        {
+                            DisplayCards(null);
+                        }
+                    }
+                    finally
+                    {
+                        _ignore_cards_tb_TextChanged--;
+                    }
+                });
+        }
+
+        internal string Pr_Get_ParallelismLevel()
+        {
+            return EnsureUICall(
+                () =>
+                {
+                    return parallelismLevel_tb.Text;
+                });
+        }
+
+        internal string Pr_Get_SimulatedGamesCount()
+        {
+            return EnsureUICall(
+                () =>
+                {
+                    return simulatedGamesCount_tb.Text;
+                });
+        }
+
+        internal string Pr_Get_EnemyPlayerCount()
+        {
+            return EnsureUICall(
+                () =>
+                {
+                    return enemyPlayerCount_tb.Text;
+                });
+        }
+
+        internal bool Pr_Get_CalculationTimeLimitEnabled()
+        {
+            return EnsureUICall(
+                () =>
+                {
+                    return timeLimit_ckb.IsChecked ?? false;
+                });
+        }
+
+        internal string Pr_Get_CalculationTimeLimit()
+        {
+            return EnsureUICall(
+                () =>
+                {
+                    return timeLimit_tb.Text;
+                });
+        }
+
+        #endregion
+
+
+        private void InitialPreparations_Preview()
+        {
+            _validCards_color = cards_lbl.Foreground;
+        }
+
+        private void InitialPreparations()
+        {
+            cards_tb.Focus();
+
+            appVersion_lbl.Content = MainWindowPr.AppVersionFormatString.FormatStr(Presenter.AppVersion.ToString());
+            libVersion_lbl.Content = MainWindowPr.LibVersionFormatString.FormatStr(Presenter.CoreLibVersion.ToString());
+        }
+
+        private void ShowCalculatedStatistic_Ok()
+        {
+            Statistic stat = Presenter.CalculatedStatistic;
+            CalculationParameters calcParameters = Presenter.CalculationParameters;
+            TimeSpan calcTime = Presenter.CalculationTime;
+
+            string s = null;
+
+            double win_percent = 100 * stat.Win / (double)stat.GameNumber;
+
+            s += "Wins:".PadRight(8) + "{0:0.####}%".FormatStr(win_percent);
+            s += Environment.NewLine;
+            s += "Draws:".PadRight(8) + "{0:0.####}%".FormatStr(100 * stat.Draw / (double)stat.GameNumber);
+            s += Environment.NewLine;
+            s += "Loses:".PadRight(8) + "{0:0.####}%".FormatStr(100 * stat.Lose / (double)stat.GameNumber);
+
+            if (calcParameters.Flop1 == null && PokerStatisticCalc.HoleCardsStatistic.ContainsKey(calcParameters.EnemyPlayersCount))
             {
-                return;
+                s += Environment.NewLine;
+                s += Environment.NewLine;
+
+                double min = PokerStatisticCalc.HoleCardsStatistic[calcParameters.EnemyPlayersCount].Item1;
+                double max = PokerStatisticCalc.HoleCardsStatistic[calcParameters.EnemyPlayersCount].Item2;
+                win_percent = Math.Max(win_percent, min);
+                win_percent = Math.Min(win_percent, max);
+                double d = 100 * (win_percent - min) / (max - min);
+
+                s += "Hole cards value: " + "{0:0.####}%".FormatStr(d);
             }
 
-            keyHooker.RemoveHook();
-            keyHooker = null;
-        }
+            s += Environment.NewLine;
+            s += Environment.NewLine;
+            s += "Games:".PadRight(8) + stat.GameNumber.ToString();
+            s += Environment.NewLine;
+            s += "Enemy:".PadRight(8) + calcParameters.EnemyPlayersCount.ToString();
+            s += Environment.NewLine;
+            s += "Simulation time: {0}".FormatStr(calcTime);
+            s += Environment.NewLine;
 
-        private void RandomCards()
-        {
-            cards_tb.Text = string.Join(string.Empty, GetRandomHand().Select(x => CardUtils.ConvertToString(x)));
-        }
+            result1_tb.Text = s;
 
-        private bool IsWatchCards()
-        {
-            return DispatcherCall(
-                () =>
+            s = null;
+            s += "Player hands histogram:";
+            s += Environment.NewLine;
+            s += Environment.NewLine;
+
+            Func<int, int, string> formatWinDrawLose =
+                (int value, int gameCount) =>
                 {
-                    return watchCards_ckb.IsChecked ?? false;
-                });
-        }
+                    return (value < 1 ? "-" : (Math.Round(value * 100 / (double)gameCount, 4).ToString() + "%")).PadRight(8);
+                };
 
-        private bool IsCalcLogCardsImmediately()
-        {
-            return DispatcherCall(
-                () =>
+            foreach (Statistic.HandStatistic hs in stat.PlayerHandsStat.OrderBy(x => HandTypeConverter.GetHandValue(x.HandType)))
+            {
+                if (hs.Win == 0 && hs.Draw == 0 && hs.Lose == 0)
                 {
-                    return calcLogCardsNow_ckb.IsChecked ?? false;
-                });
+                    continue;
+                }
+
+                s += "{0} {1}  |  {2}   {3}   {4}".FormatStr(
+                    (HandTypeConverter.GetName(hs.HandType) + ":").PadRight(20),
+                    formatWinDrawLose(hs.Win + hs.Draw + hs.Lose, stat.GameNumber),
+                    formatWinDrawLose(hs.Win, stat.GameNumber),
+                    formatWinDrawLose(hs.Draw, stat.GameNumber),
+                    formatWinDrawLose(hs.Lose, stat.GameNumber)
+                    );
+                s += Environment.NewLine;
+            }
+
+            result2_tb.Text = s;
+
+            s = null;
+            s += "Enemy hands histogram:";
+            s += Environment.NewLine;
+            s += Environment.NewLine;
+            s += "Wins: " + "{0:0.####}%".FormatStr(100 * stat.EnemyHandsStat.Select(x => x.Win).Sum() / (double)stat.GameNumber);
+            s += "    ";
+            s += "Draws: " + "{0:0.####}%".FormatStr(100 * stat.EnemyHandsStat.Select(x => x.Draw).Sum() / (double)stat.GameNumber);
+            s += "    ";
+            s += "Loses: " + "{0:0.####}%".FormatStr(100 * stat.EnemyHandsStat.Select(x => x.Lose).Sum() / (double)stat.GameNumber);
+            s += Environment.NewLine;
+            s += Environment.NewLine;
+
+            foreach (Statistic.HandStatistic hs in stat.EnemyHandsStat.OrderBy(x => HandTypeConverter.GetHandValue(x.HandType)))
+            {
+                if (hs.Win == 0)
+                {
+                    continue;
+                }
+
+                s += "{0} {1}  |  {2}   {3}   {4}".FormatStr(
+                    (HandTypeConverter.GetName(hs.HandType) + ":").PadRight(20),
+                    formatWinDrawLose(hs.Win + hs.Draw + hs.Lose, stat.GameNumber),
+                    formatWinDrawLose(hs.Win, stat.GameNumber),
+                    formatWinDrawLose(hs.Draw, stat.GameNumber),
+                    formatWinDrawLose(hs.Lose, stat.GameNumber)
+                    );
+                s += Environment.NewLine;
+            }
+
+            result3_tb.Text = s;
         }
 
-        private T DispatcherCall<T>(Func<T> f)
+        private void DisplayCards(Card[] cards)
         {
-            Code.RequireNotNull(f);
+            var cardImgCtrls = new Image[]
+            {
+                card1_img,
+                card2_img,
+                card3_img,
+                card4_img,
+                card5_img,
+                card6_img,
+                card7_img,
+            };
 
+            if (cards.IsNullOrEmpty())
+            {
+                cards = new Card[0];
+            }
+
+            for (int i = 0; i < Math.Max(cards.Length, cardImgCtrls.Length); i++)
+            {
+                Image cardImgCtrl = Utility.TryGetByIndx(cardImgCtrls, i, null);
+                Card card = Utility.TryGetByIndx(cards, i, null);
+
+                if (cardImgCtrl == null)
+                {
+                    continue;
+                }
+
+                if (card != null)
+                {
+                    cardImgCtrl.Source = Presenter.CardImages[card];
+                }
+                else
+                {
+                    cardImgCtrl.Source = null;
+                }
+            }
+        }
+
+        //
+        private void EnsureUICall(Action action)
+        {
             if (Thread.CurrentThread.ManagedThreadId != Dispatcher.Thread.ManagedThreadId)
             {
-                T res = default(T);
-                Dispatcher.Invoke(new Action(
-                    () =>
-                    {
-                        res = f();
-                    }));
-                return res;
+                Dispatcher.Invoke(action);
             }
+            else
+            {
+                action();
+            }
+        }
 
-            return f();
+        private T EnsureUICall<T>(Func<T> func)
+        {
+            T res = default(T);
+
+            EnsureUICall(
+                () =>
+                {
+                    res = func();
+                });
+
+            return res;
+        }
+        //
+    }
+
+    class MainWindowPr
+    {
+        internal ApplicationCm Application { get; set; }
+
+        //
+        private MainWindow MainView;
+
+        //
+        internal readonly Logger Logger = new Logger();
+
+
+        #region Const Fields and Props
+
+        internal const int ClipboardMonitorSleep = 100; //ms
+        internal const int FileMonitorSleep = 600; //ms
+        internal const int ProgressWatcherSleep = 100; //ms
+
+        internal const string AppVersionFormatString = "app v{0}";
+        internal const string LibVersionFormatString = "lib v{0}";
+
+        internal const string LogFilePath = @"C:\Program Files\PokerStars\PokerStars.log.0";
+
+        #endregion
+
+
+        #region Public & Internal Fields and Props
+
+        internal string ParallelismLevel_Str { get; private set; }
+        internal bool ParallelismLevel_IsValid { get; private set; }
+        internal int ParallelismLevel { get; private set; }
+
+        internal string SimulatedGamesCount_Str { get; private set; }
+        internal bool SimulatedGamesCount_IsValid { get; private set; }
+        internal int SimulatedGamesCount { get; private set; }
+
+        internal string EnemyPlayerCount_Str { get; private set; }
+        internal bool EnemyPlayerCount_IsValid { get; private set; }
+        internal int EnemyPlayerCount { get; private set; }
+
+        internal bool CalculationTimeLimitEnabled { get; private set; }
+
+        internal string CalculationTimeLimit_Str { get; private set; }
+        internal bool CalculationTimeLimit_IsValid { get; private set; }
+        internal TimeSpan CalculationTimeLimit { get; private set; }
+
+        internal string Cards_Str { get; private set; }
+        internal bool Cards_IsValid { get; private set; }
+        internal Card[] Cards { get; private set; }
+
+        internal bool IsWatchCardsInClipboardAndLogFile { get; private set; }
+        internal bool IsWatchGlobalKeys { get; private set; }
+        internal bool IsCalcLogCardsImmediately { get; private set; }
+
+        //
+        internal Version AppVersion { get; private set; }
+        internal Version CoreLibVersion { get; private set; }
+
+        //
+        internal MainWindowKeyManager KeyManager { get; private set; }
+        internal Dictionary<Card, BitmapImage> CardImages { get; private set; }
+
+        //
+        internal bool IsCalculating { get; private set; }
+        internal CalculationResult CalculationResult { get; private set; }
+        internal Exception CalculationError { get; private set; }
+        internal Statistic CalculatedStatistic { get; private set; }
+        internal TimeSpan CalculationTime { get; private set; }
+        internal CalculationParameters CalculationParameters { get; private set; }
+
+        #endregion
+
+
+        #region Private Fields and Props
+
+        private KeyInterceptor _globalKeyHooker;
+        private Random _rnd = new Random(Guid.NewGuid().GetHashCode());
+
+        private CancellationTokenSource _cancelTokenSource;
+        private Task _calculationTask;
+
+        private long? _logFileSize;
+        private string _clipboardTxt;
+
+        #endregion
+
+
+        public void Start()
+        {
+            Init();
+
+            MainView.ShowDialog();
+        }
+
+        private void Init()
+        {
+            MainView = new MainWindow();
+            MainView.Presenter = this;
         }
 
         private void SetVersions()
         {
-            Version applicationVersion = Assembly.GetExecutingAssembly().GetName().Version;
-            Version coreLibVersion = Assembly.GetAssembly(typeof(PokerHelper.PokerStatisticCalc)).GetName().Version;
-
-            appVersion_lbl.Content = AppVersionFormatString.FormatStr(applicationVersion.ToString());
-            libVersion_lbl.Content = LibVersionFormatString.FormatStr(coreLibVersion.ToString());
+            AppVersion = Assembly.GetExecutingAssembly().GetName().Version;
+            CoreLibVersion = Assembly.GetAssembly(typeof(PokerStatisticCalc)).GetName().Version;
         }
 
-        private void StartMonitorClipboard()
+        private void ProcessParsedFromLogFileCards(Card c1, Card c2)
         {
-            Task.Factory.StartNew(
+            bool distinct = true;
+
+            if (!Cards.IsNullOrEmpty() && Cards.Length >= 2)
+            {
+                distinct = !IsCardsNonOrderEqual(new Card[] { c1, c2, }, Cards.Take(2).ToArray());
+            }
+
+            if (!distinct)
+            {
+                return;
+            }
+
+            CancelCalculation(
                 () =>
                 {
-                    while (true)
-                    {
-                        Thread.Sleep(ClipboardMonitorSleep);
+                    SetCards(new Card[] { c1, c2, });
 
-                        try
-                        {
-                            ClipboardMonitor();
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.LogException(ex);
-                        }
+                    if (IsCalcLogCardsImmediately)
+                    {
+                        StartCalculation();
                     }
                 });
-            Clipboard.GetText();
         }
 
-        private void ClipboardMonitor()
+        public void StartCalculation()
         {
-            if (!IsWatchCards())
-            {
-                return;
-            }
-
-            string s = null;
-
-            Dispatcher.Invoke(new Action(
-                () =>
-                {
-                    s = Clipboard.GetText();
-                }));
-
-            if (s == clipboardTxt)
-            {
-                return;
-            }
-
-            clipboardTxt = s;
-
-            if (string.IsNullOrEmpty(clipboardTxt))
-            {
-                return;
-            }
-
-            var cards = new LinkedList<char>();
-
-            bool b = false;
-            for (int i = 0; i < clipboardTxt.Length; i++)
-            {
-                if (clipboardTxt[i] == '[')
-                {
-                    b = true;
-                    continue;
-                }
-                else if (clipboardTxt[i] == ']')
-                {
-                    break;
-                }
-
-                if (b)
-                {
-                    cards.AddLast(clipboardTxt[i]);
-                }
-            }
-
-            string cardsstr = new string(cards.ToArray());
-
-            if (string.IsNullOrWhiteSpace(cardsstr))
-            {
-                return;
-            }
-
-            cardsstr = cardsstr.Replace(" ", string.Empty);
+            _calculationTask = null;
+            CalculationParameters = null;
 
             try
             {
-                // try parse
-                GetCards(cardsstr);
+                CalculationParameters = PrepareCalculationParameters();
+                Code.RequireNotNull(CalculationParameters);
             }
             catch (Exception ex)
             {
                 Logger.LogException(ex);
+                MainView.Pr_ParametersAreNotValid(ex);
                 return;
             }
 
-            CancellationTokenSource cts = CancelTokenSource;
-            Task calculationTask = CalculationTask;
-            if (Calculating)
-            {
-                cts.Cancel();
+            MainView.Pr_CalculationStarted();
 
-                calculationTask.ContinueWith(
-                    (Task ancestor) =>
+            TimeSpan calcTime = TimeSpan.Zero;
+            Statistic stat = null;
+
+            IsCalculating = true;
+            _cancelTokenSource = new CancellationTokenSource();
+            CalculationParameters.CancelToken = _cancelTokenSource.Token;
+
+            _calculationTask = Task.Factory.StartNew(
+               () =>
+               {
+                   var psc = new PokerStatisticCalc();
+                   var sw = Stopwatch.StartNew();
+                   stat = psc.RunExperiment(CalculationParameters);
+                   sw.Stop();
+                   calcTime = sw.Elapsed;
+               },
+               _cancelTokenSource.Token);
+
+            _calculationTask.ContinueWith(
+                (Task ancestor) =>
+                {
+                    try
                     {
-                        Dispatcher.BeginInvoke(new Action(
-                            () =>
-                            {
-                                cards_tb.Text += cardsstr;
-                                StartSimulation();
-                            }));
-                    });
+                        CalculationFinished(ancestor.Exception, ancestor.IsCanceled, stat, calcTime);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogException(ex);
+                    }
+                });
+
+            StartMonitor_ProgressWatcher();
+        }
+
+        private void CalculationFinished(Exception ex, bool cancelled, Statistic stat, TimeSpan calcTime)
+        {
+            IsCalculating = false;
+            _cancelTokenSource = null;
+
+            if (ex != null)
+            {
+                Logger.LogException(ex);
+
+                CalculatedStatistic = null;
+                CalculationTime = TimeSpan.Zero;
+                CalculationResult = CalculationResult.Failed;
+                CalculationError = ex;
+            }
+            else if (cancelled)
+            {
+                CalculatedStatistic = null;
+                CalculationTime = TimeSpan.Zero;
+                CalculationResult = CalculationResult.Cancelled;
             }
             else
             {
-                Dispatcher.BeginInvoke(new Action(
-                    () =>
-                    {
-                        cards_tb.Text += cardsstr;
-                        StartSimulation();
-                    }));
+                CalculatedStatistic = stat;
+                CalculationTime = calcTime;
+                CalculationResult = CalculationResult.Ok;
             }
+
+            MainView.Pr_CalculationFinished();
         }
 
-        private void StartMonitorLogFile()
+        private CalculationParameters PrepareCalculationParameters()
         {
-            Task.Factory.StartNew(LogFileMonitor);
-        }
+            var param = new CalculationParameters();
 
-        private void LogFileMonitor()
-        {
-            while (true)
+            InvalidatePendingParameters();
+
+            if (!SimulatedGamesCount_IsValid)
             {
-                try
+                SetSimulatedGamesCount(ParamHelper.GetSimulatedGameCount());
+            }
+            param.GameNumber = SimulatedGamesCount;
+
+            if (!ParallelismLevel_IsValid)
+            {
+                SetParallelismLevel(ParamHelper.GetParallelismLevel());
+            }
+            param.ParallelLevel = ParallelismLevel;
+
+            if (!EnemyPlayerCount_IsValid)
+            {
+                SetEnemyPlayerCount(ParamHelper.GetEnemyPlayersCount());
+            }
+            param.EnemyPlayersCount = EnemyPlayerCount;
+
+            if (CalculationTimeLimitEnabled)
+            {
+                if (!CalculationTimeLimit_IsValid)
                 {
-                    Thread.Sleep(FileMonitorSleep);
+                    SetCalculationTimeLimit(ParamHelper.GetCalculationTimeLimit());
+                }
+                param.TimeLimit = CalculationTimeLimit;
+            }
+            else
+            {
+                param.TimeLimit = null;
+            }
 
-                    if (Calculating)
+            if (!Cards_IsValid)
+            {
+                SetCards(GetRandomHand(_rnd));
+            }
+
+            Card[] cards = Cards.ToArray();
+
+            param.PlayerCard1 = cards[0];
+            param.PlayerCard2 = cards[1];
+
+            param.Flop1 = Utility.TryGetByIndx(cards, 2);
+            param.Flop2 = Utility.TryGetByIndx(cards, 3);
+            param.Flop3 = Utility.TryGetByIndx(cards, 4);
+            param.Turn = Utility.TryGetByIndx(cards, 5);
+            param.River = Utility.TryGetByIndx(cards, 6);
+
+            return param;
+        }
+
+        private void SetCards(Card[] cards, bool add = false)
+        {
+            if (add)
+            {
+                if (!cards.IsNullOrEmpty())
+                {
+                    List<Card> res_cards;
+                    if (!Cards.IsNullOrEmpty())
                     {
-                        continue;
+                        res_cards = Cards.ToList();
                     }
-
-                    if (!IsWatchCards())
+                    else
                     {
-                        continue;
+                        res_cards = new List<Card>();
                     }
+                    res_cards.AddRange(cards);
+                }
+            }
+            else
+            {
+                if (cards.IsNullOrEmpty())
+                {
+                    Cards = null;
+                }
+                else
+                {
+                    Cards = cards.ToArray();
+                }
+            }
 
-                    var fi = new FileInfo(LogFilePath);
-                    if (!fi.Exists)
-                    {
-                        continue;
-                    }
+            if (Cards == null || Cards.Length < 2)
+            {
+                Cards_IsValid = false;
+            }
+            else
+            {
+                Cards_IsValid = true;
+            }
+            
+            Cards_Str = ConvertCardsToCardsInputStr(Cards);
 
-                    if (fi.Length == logFileSize)
-                    {
-                        continue;
-                    }
+            MainView.Pr_CardsChanged();
+        }
 
-                    logFileSize = fi.Length;
+        private void SetSimulatedGamesCount(int val)
+        {
+            SimulatedGamesCount = val;
+            SimulatedGamesCount_IsValid = true;
+            SimulatedGamesCount_Str = val.ToString();
+            MainView.Pr_SimulatedGamesCount_Changed();
+        }
 
-                    Task.Factory.StartNew(
-                        () =>
+        private void SetParallelismLevel(int val)
+        {
+            ParallelismLevel = val;
+            ParallelismLevel_IsValid = true;
+            ParallelismLevel_Str = val.ToString();
+            MainView.Pr_ParallelismLevel_Changed();
+        }
+
+        private void SetEnemyPlayerCount(int val)
+        {
+            EnemyPlayerCount = val;
+            EnemyPlayerCount_IsValid = true;
+            EnemyPlayerCount_Str = val.ToString();
+            MainView.Pr_EnemyPlayerCount_Changed();
+        }
+
+        private void SetCalculationTimeLimit(TimeSpan val)
+        {
+            CalculationTimeLimit = val;
+            CalculationTimeLimit_IsValid = true;
+            CalculationTimeLimit_Str = val.TotalSeconds.ToString(CultureInfo.InvariantCulture);
+            MainView.Pr_CalculationTimeLimit_Changed();
+        }
+
+        private void SetCalculationTimeLimitEnabled(bool val)
+        {
+            CalculationTimeLimitEnabled = val;
+            MainView.Pr_CalculationTimeLimitEnabled_Changed();
+        }
+
+        /// <summary>
+        /// Cancel calculation task and execute continuation.
+        /// Continuation will be executed if there is nothing to cancel or right after calculation task become cancelled.
+        /// </summary>
+        /// <param name="continuation">Continuation to be executed</param>
+        /// <returns>True if there was cancellation and False otherwise.</returns>
+        private bool CancelCalculation(Action continuation = null)
+        {
+            CancellationTokenSource cts = _cancelTokenSource;
+            Task calculationTask = _calculationTask;
+
+            if (IsCalculating)
+            {
+                cts.Cancel();
+
+                Code.RequireNotNull(calculationTask);
+
+                if (continuation != null)
+                {
+                    calculationTask.ContinueWith(
+                        (Task ancestor) =>
                         {
                             try
                             {
-                                LogFile_Changed();
+                                continuation();
                             }
-                            catch (Exception ex2)
+                            catch (Exception ex)
                             {
-                                Logger.LogException(ex2, "LogFile_Changed handler failed.");
+                                Logger.LogException(ex);
                             }
                         });
                 }
-                catch (Exception ex)
-                {
-                    Logger.LogException(ex, "Log file processing failed.");
-                }
+
+                return true;
+            }
+
+            if (continuation != null)
+            {
+                continuation();
+            }
+
+            return false;
+        }
+
+        private void InvalidatePendingParameters()
+        {
+            Invalidate_ParallelismLevel();
+            Invalidate_SimulatedGamesCount();
+            Invalidate_EnemyPlayerCount();
+            Invalidate_CalculationTimeLimitEnabled();
+            Invalidate_CalculationTimeLimit();
+        }
+
+        private void Invalidate_ParallelismLevel()
+        {
+            int i;
+
+            ParallelismLevel_Str = MainView.Pr_Get_ParallelismLevel();
+            ParallelismLevel_IsValid = int.TryParse(ParallelismLevel_Str, out i);
+            if (ParallelismLevel_IsValid)
+            {
+                ParallelismLevel = i;
             }
         }
 
-        private void LogFile_Changed()
+        private void Invalidate_SimulatedGamesCount()
         {
-            if (!File.Exists(LogFilePath))
+            int i;
+
+            SimulatedGamesCount_Str = MainView.Pr_Get_SimulatedGamesCount();
+            SimulatedGamesCount_IsValid = int.TryParse(SimulatedGamesCount_Str, out i);
+            if (SimulatedGamesCount_IsValid)
             {
-                return;
+                SimulatedGamesCount = i;
+            }
+        }
+
+        private void Invalidate_EnemyPlayerCount()
+        {
+            int i;
+
+            EnemyPlayerCount_Str = MainView.Pr_Get_EnemyPlayerCount();
+            EnemyPlayerCount_IsValid = int.TryParse(EnemyPlayerCount_Str, out i);
+            if (EnemyPlayerCount_IsValid)
+            {
+                EnemyPlayerCount = i;
+            }
+        }
+
+        private void Invalidate_CalculationTimeLimitEnabled()
+        {
+            CalculationTimeLimitEnabled = MainView.Pr_Get_CalculationTimeLimitEnabled();
+        }
+
+        private void Invalidate_CalculationTimeLimit()
+        {
+            double d;
+
+            CalculationTimeLimit_Str = MainView.Pr_Get_CalculationTimeLimit();
+            CalculationTimeLimit_IsValid = double.TryParse(
+                CalculationTimeLimit_Str,
+                Utility.GetDefaultDoubleParseStyles(),
+                CultureInfo.InvariantCulture,
+                out d);
+
+            if (CalculationTimeLimit_IsValid)
+            {
+                CalculationTimeLimit = TimeSpan.FromSeconds(d);
+            }
+        }
+
+
+        #region From View
+
+
+        #region Main
+
+        internal void View_Loaded()
+        {
+            SetVersions();
+
+            KeyManager = new MainWindowKeyManager();
+
+            SetCards(null);
+            SetParallelismLevel(ParamHelper.GetParallelismLevel());
+            SetSimulatedGamesCount(ParamHelper.GetSimulatedGameCount());
+            SetEnemyPlayerCount(ParamHelper.GetEnemyPlayersCount());
+            SetCalculationTimeLimitEnabled(ParamHelper.GetCalculationTimeLimitEnabled());
+            SetCalculationTimeLimit(ParamHelper.GetCalculationTimeLimit());
+
+            CardImages = BuildCardImages(Properties.Resources.cardfaces);
+
+            Cards = GetRandomHand(_rnd);
+
+            StartMonitor_LogFile();
+            StartMonitor_Clipboard();
+            SetGlobalKeyHooker();
+        }
+
+        internal void View_KeyDown(KeyEventArgs e)
+        {
+            if (IsCalculating && KeyManager.IsGlobalCancelKey(e))
+            {
+                CancelCalculation();
+            }
+        }
+
+        internal void View_Closed()
+        {
+            DisposeGlobalKeyHooker();
+        }
+
+        internal void View_Dispatcher_UnhandledException(DispatcherUnhandledExceptionEventArgs e)
+        {
+            DisposeGlobalKeyHooker();
+        }
+
+        #endregion
+
+
+        internal void View_CardsActivity(KeyEventArgs e, out bool handled)
+        {
+            handled = false;
+
+            if (KeyManager.IsClearCardsInCardsInput(e))
+            {
+                SetCards(new Card[0]);
             }
 
-            string str = null;
-            try
+            if (KeyManager.IsSetRandomCardsInCardsInput(e))
             {
-                using (var fs = File.Open(LogFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (var sr = new StreamReader(fs))
+                SetCards(GetRandomHand(_rnd));
+                handled = true;
+            }
+        }
+
+        internal void View_CardsInputChanged(string val)
+        {
+            string correctedVal = null;
+
+            if (!val.IsNullOrEmptyStr())
+            {
+                bool flag = true;
+                for (int i = 0; i < val.Length; i++)
                 {
-                    str = sr.ReadToEnd();
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-            }
+                    char c = val[i];
 
-            try
-            {
-                Tuple<Card, Card> cards = ParseLast2CardsFromLogFile(str);
-                if (cards == null || cards.Item1 == null || cards.Item2 == null)
-                {
-                    return;
-                }
-
-                Dispatcher.Invoke(new Action(
-                    () =>
+                    if (char.IsWhiteSpace(c))
                     {
-                        ProcessParsedFromLogFileCards(cards.Item1, cards.Item2);
-                    }));
+                        correctedVal += c;
+                        continue;
+                    }
+
+                    if (flag)
+                    {
+                        correctedVal += char.ToUpperInvariant(c);
+                    }
+                    else
+                    {
+                        correctedVal += char.ToLowerInvariant(c);
+                    }
+
+                    flag = !flag;
+                }
+            }
+
+            Cards_Str = correctedVal;
+            MainView.Pr_CorrectCardsString(correctedVal);
+
+            bool parsed = true;
+            Card[] cards = null;
+            try
+            {
+                cards = ParseCardsFromCardsInput(correctedVal);
             }
             catch (Exception ex)
             {
                 Logger.LogException(ex);
+                parsed = false;
+            }
+
+            if (parsed)
+            {
+                Cards = cards;
+                Cards_IsValid = true;
+            }
+            else
+            {
+                Cards_IsValid = false;
+            }
+
+            MainView.Pr_CardsChanged();
+        }
+
+        #endregion
+
+
+        #region Pure Methods & Functions (Utils)
+
+        private static Card[] GetAllCards()
+        {
+            CardSuit[] cardSuits = Enum.GetValues(typeof(CardSuit))
+                .Cast<CardSuit>()
+                .ToArray();
+
+            CardValue[] cardValues = Enum.GetValues(typeof(CardValue))
+                .Cast<CardValue>()
+                .ToArray();
+
+            var cards = new List<Card>();
+            foreach (CardSuit cardSuit in cardSuits)
+            {
+                foreach (CardValue cardValue in cardValues)
+                {
+                    var card = new Card(cardSuit, cardValue);
+                    cards.Add(card);
+                }
+            }
+
+            return cards.ToArray();
+        }
+
+        private static Card[] GetRandomHand(Random rnd)
+        {
+            Card[] cards = GetAllCards();
+            Shuffle(cards, rnd);
+
+            return cards.Take(rnd.Next(2, 8)).ToArray();
+        }
+
+        private static void Shuffle(Card[] cards, Random rnd)
+        {
+            var rnds = new int[cards.Length];
+
+            for (int i = cards.Length - 1; i > 0; i--)
+            {
+                rnds[i] = rnd.Next(0, i + 1);
+            }
+
+            for (int i = cards.Length - 1; i > 0; i--)
+            {
+                int rndIndx = rnds[i];
+
+                if (rndIndx != i)
+                {
+                    Card tmp = cards[i];
+                    cards[i] = cards[rndIndx];
+                    cards[rndIndx] = tmp;
+                }
             }
         }
 
-        private Tuple<Card, Card> ParseLast2CardsFromLogFile(string s)
+        private static Tuple<Card, Card> ParseLast2CardsFromLogFile(string s)
         {
-            if (string.IsNullOrEmpty(s))
+            if (s.IsNullOrEmptyStr())
             {
                 return null;
             }
@@ -714,130 +1319,69 @@ namespace WpfApplication1
             }
             s2 = s2.Trim();
 
-            Card c1 = ParseCardSpecial(s1);
-            Card c2 = ParseCardSpecial(s2);
+            Card c1 = ParseCardInLogFileFormat(s1);
+            Card c2 = ParseCardInLogFileFormat(s2);
 
             return Tuple.Create(c1, c2);
         }
 
-        private void ProcessParsedFromLogFileCards(Card c1, Card c2)
+        private static Card ParseCardInLogFileFormat(string s)
         {
-            bool distinct = true;
+            string value = new string(s.Take(s.Length - 1).ToArray());
+            char suit = s[s.Length - 1];
 
-            if (!string.IsNullOrEmpty(cards_tb.Text))
+            CardSuit cardSuit = CardUtils.ParseSuit(suit);
+
+            CardValue cardValue;
+            switch (value)
             {
-                Card[] cards = GetCards(cards_tb.Text);
-                if (cards.Length > 1)
-                {
-                    distinct = !IsEquals(new Card[] { c1, c2, }, cards.Take(2).ToArray());
-                }
+                case "14":
+                    cardValue = CardValue._Ace;
+                    break;
+                case "13":
+                    cardValue = CardValue._King;
+                    break;
+                case "12":
+                    cardValue = CardValue._Queen;
+                    break;
+                case "11":
+                    cardValue = CardValue._Jack;
+                    break;
+                case "10":
+                    cardValue = CardValue._10;
+                    break;
+                case "9":
+                    cardValue = CardValue._9;
+                    break;
+                case "8":
+                    cardValue = CardValue._8;
+                    break;
+                case "7":
+                    cardValue = CardValue._7;
+                    break;
+                case "6":
+                    cardValue = CardValue._6;
+                    break;
+                case "5":
+                    cardValue = CardValue._5;
+                    break;
+                case "4":
+                    cardValue = CardValue._4;
+                    break;
+                case "3":
+                    cardValue = CardValue._3;
+                    break;
+                case "2":
+                    cardValue = CardValue._2;
+                    break;
+                default:
+                    throw new InvalidOperationException();
             }
 
-            if (!distinct)
-            {
-                return;
-            }
-
-            string str = CardUtils.ConvertToString(c2) + CardUtils.ConvertToString(c1);
-
-            Action exec =
-                () =>
-                {
-                    cards_tb.Text = str;
-                    if (IsCalcLogCardsImmediately())
-                    {
-                        StartSimulation();
-                    }
-                };
-
-            CancellationTokenSource cts = CancelTokenSource;
-            Task calculationTask = CalculationTask;
-            if (Calculating)
-            {
-                cts.Cancel();
-
-                calculationTask.ContinueWith(
-                    (Task ancestor) =>
-                    {
-                        Dispatcher.BeginInvoke(exec);
-                    });
-            }
-            else
-            {
-                exec();
-            }
+            return new Card(cardSuit, cardValue);
         }
 
-        private bool IsEquals(Card[] cards1, Card[] cards2)
-        {
-            List<string> l1 = cards1.Select(x => CardUtils.ConvertToString(x)).ToList();
-            l1.Sort();
-
-            List<string> l2 = cards2.Select(x => CardUtils.ConvertToString(x)).ToList();
-            l2.Sort();
-
-            return l1.SequenceEqual(l2);
-        }
-
-        private void SimulationStartedShow()
-        {
-            lastFocusedElement = Keyboard.FocusedElement as Control;
-
-            mainGrid.IsEnabled = false;
-            waiter.Visibility = System.Windows.Visibility.Visible;
-
-            progress_bar.Visibility = System.Windows.Visibility.Visible;
-            progress_bar.Value = 0;
-        }
-
-        private void SimulationFinishedShow()
-        {
-            mainGrid.IsEnabled = true;
-            waiter.Visibility = System.Windows.Visibility.Hidden;
-            progress_bar.Visibility = System.Windows.Visibility.Collapsed;
-
-            if (lastFocusedElement != null)
-            {
-                lastFocusedElement.Focus();
-                lastFocusedElement = null;
-            }
-        }
-
-        private void DisplayCards(Card[] cards)
-        {
-            var cardImgCtrls = new Image[]
-            {
-                card1_img,
-                card2_img,
-                card3_img,
-                card4_img,
-                card5_img,
-                card6_img,
-                card7_img,
-            };
-
-            for (int i = 0; i < Math.Max(cards.Length, cardImgCtrls.Length); i++)
-            {
-                Image cardImgCtrl = TryGetByIndx(cardImgCtrls, i, null);
-                Card card = TryGetByIndx(cards, i, null);
-
-                if (cardImgCtrl == null)
-                {
-                    continue;
-                }
-
-                if (card != null)
-                {
-                    cardImgCtrl.Source = CardImages[card];
-                }
-                else
-                {
-                    cardImgCtrl.Source = null;
-                }
-            }
-        }
-
-        private BitmapImage GetCardImage(System.Drawing.Bitmap cardImages, CardSuit cardSuit, CardValue cardValue)
+        private static BitmapImage GetCardImage(System.Drawing.Bitmap cardImages, CardSuit cardSuit, CardValue cardValue)
         {
             int topx = 0;
             int topy = 0;
@@ -924,220 +1468,16 @@ namespace WpfApplication1
             return bi;
         }
 
-        private Dictionary<Card, BitmapImage> BuildCardImages()
+        // parse convert cards to/from UI
+        private static Card[] ParseCardsFromCardsInput(string s)
         {
-            Card[] cards = GetAllCards();
-
-            System.Drawing.Bitmap cardImagesBitmap = Properties.Resources.cardfaces;
-
-            var cardImages = new Dictionary<Card, BitmapImage>(CardComparer.Default);
-            foreach (Card card in cards)
+            if (s.IsNullOrWhiteSpaceStr())
             {
-                BitmapImage bi = GetCardImage(cardImagesBitmap, card.Suit, card.Value);
-                cardImages[card] = bi;
+                return null;
             }
 
-            return cardImages;
-        }
+            s = s.Replace(" ", string.Empty);
 
-        private Card[] GetAllCards()
-        {
-            CardSuit[] cardSuits = Enum.GetValues(typeof(CardSuit))
-                .Cast<CardSuit>()
-                .ToArray();
-
-            CardValue[] cardValues = Enum.GetValues(typeof(CardValue))
-                .Cast<CardValue>()
-                .ToArray();
-
-            var cards = new List<Card>();
-            foreach (CardSuit cardSuit in cardSuits)
-            {
-                foreach (CardValue cardValue in cardValues)
-                {
-                    var card = new Card(cardSuit, cardValue);
-                    cards.Add(card);
-                }
-            }
-
-            return cards.ToArray();
-        }
-
-        private void StartSimulation()
-        {
-            CalculationTask = null;
-            ExpParams = null;
-
-            try
-            {
-                ExpParams = GetParameters();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogException(ex);
-                result1_tb.Text = "Parameters are not valid:" + Environment.NewLine + ex.ToString();
-                result2_tb.Text = string.Empty;
-                result3_tb.Text = string.Empty;
-                return;
-            }
-
-            SimulationStartedShow();
-
-            TimeSpan calcTime = TimeSpan.Zero;
-            Statistic stat = null;
-
-            Calculating = true;
-            CancelTokenSource = new CancellationTokenSource();
-            ExpParams.CancelToken = CancelTokenSource.Token;
-
-            progress_bar.Minimum = 0;
-            progress_bar.Maximum = ExpParams.GameNumber;
-
-            CalculationTask = Task.Factory.StartNew(
-               () =>
-               {
-                   var psc = new PokerStatisticCalc();
-                   var sw = Stopwatch.StartNew();
-                   stat = psc.RunExperiment(ExpParams);
-                   sw.Stop();
-                   calcTime = sw.Elapsed;
-               },
-               CancelTokenSource.Token);
-
-            CalculationTask.ContinueWith(
-                (Task ancestor) =>
-                {
-                    Dispatcher.Invoke(new Action(
-                        () =>
-                        {
-                            SimulationFinished(ancestor.Exception, ancestor.IsCanceled, stat, calcTime);
-                        }));
-                });
-
-            Task.Factory.StartNew(
-                () =>
-                {
-                    while (!CalculationTask.IsCompleted)
-                    {
-                        Thread.Sleep(ProgressWatcherSleep);
-
-                        CalculationParameters expParams = ExpParams;
-                        if (expParams == null)
-                        {
-                            continue;
-                        }
-
-                        int val = expParams.SimulatedGamesCount;
-
-                        Dispatcher.BeginInvoke(new Action(
-                            () =>
-                            {
-                                progress_bar.Value = val;
-                            }));
-                    }
-                });
-        }
-
-        private void SimulationFinished(Exception ex, bool cancelled, Statistic stat, TimeSpan calcTime)
-        {
-            Calculating = false;
-            CancelTokenSource = null;
-
-            SimulationFinishedShow();
-
-            if (ex != null)
-            {
-                Logger.LogException(ex);
-                result1_tb.Text = "Error occured:" + Environment.NewLine + ex.ToString();
-                result2_tb.Text = string.Empty;
-                result3_tb.Text = string.Empty;
-                return;
-            }
-
-            if (cancelled)
-            {
-                result1_tb.Text = "Cancelled.";
-                result2_tb.Text = string.Empty;
-                result3_tb.Text = string.Empty;
-                return;
-            }
-
-            ShowStatistic(stat, calcTime);
-        }
-
-        private CalculationParameters GetParameters()
-        {
-            var param = new CalculationParameters();
-
-            if (!string.IsNullOrWhiteSpace(simulatedGamesCount_tb.Text))
-            {
-                param.GameNumber = int.Parse(simulatedGamesCount_tb.Text);
-            }
-            else
-            {
-                param.GameNumber = DefaultSimulatedGameCount;
-                simulatedGamesCount_tb.Text = param.GameNumber.ToString();
-            }
-
-            if (!string.IsNullOrWhiteSpace(parallelismLevel_tb.Text))
-            {
-                param.ParallelLevel = int.Parse(parallelismLevel_tb.Text);
-            }
-            else
-            {
-                param.ParallelLevel = ParamHelper.GetParallelismLevel();
-                parallelismLevel_tb.Text = param.ParallelLevel.ToString();
-            }
-
-            if (!string.IsNullOrWhiteSpace(enemyPlayerCount_tb.Text))
-            {
-                param.EnemyPlayersCount = int.Parse(enemyPlayerCount_tb.Text);
-            }
-            else
-            {
-                param.EnemyPlayersCount = DefaultEnemyPlayersCount;
-                enemyPlayerCount_tb.Text = param.EnemyPlayersCount.ToString();
-            }
-
-            if (timeLimit_ckb.IsChecked ?? false)
-            {
-                if (!string.IsNullOrWhiteSpace(timeLimit_tb.Text))
-                {
-                    double seconds = double.Parse(timeLimit_tb.Text, CultureInfo.InvariantCulture);
-                    param.TimeLimit = TimeSpan.FromSeconds(seconds);
-                }
-                else
-                {
-                    param.TimeLimit = TimeSpan.FromMilliseconds(DefaultTimeLimit);
-                    timeLimit_tb.Text = Math.Round(param.TimeLimit.Value.Milliseconds / 1000d, 2).ToString(CultureInfo.InvariantCulture);
-                }
-            }
-            else
-            {
-                param.TimeLimit = null;
-            }
-
-            if (string.IsNullOrWhiteSpace(cards_tb.Text))
-            {
-                RandomCards();
-            }
-
-            Card[] cards = GetCards(cards_tb.Text);
-
-            param.PlayerCard1 = cards[0];
-            param.PlayerCard2 = cards[1];
-
-            param.Flop1 = TryGetByIndx(cards, 2);
-            param.Flop2 = TryGetByIndx(cards, 3);
-            param.Flop3 = TryGetByIndx(cards, 4);
-            param.Turn = TryGetByIndx(cards, 5);
-            param.River = TryGetByIndx(cards, 6);
-
-            return param;
-        }
-
-        private Card[] GetCards(string s)
-        {
             int count = s.Length;
             if (count % 2 == 1)
             {
@@ -1154,199 +1494,430 @@ namespace WpfApplication1
             return cards.ToArray();
         }
 
-        private void ShowStatistic(Statistic stat, TimeSpan calcTime)
+        private static string ConvertCardsToCardsInputStr(Card[] cards)
         {
-            string s = null;
-
-            double win_percent = 100 * stat.Win / (double)stat.GameNumber;
-
-            s += "Wins:".PadRight(8) + "{0:0.####}%".FormatStr(win_percent);
-            s += Environment.NewLine;
-            s += "Draws:".PadRight(8) + "{0:0.####}%".FormatStr(100 * stat.Draw / (double)stat.GameNumber);
-            s += Environment.NewLine;
-            s += "Loses:".PadRight(8) + "{0:0.####}%".FormatStr(100 * stat.Lose / (double)stat.GameNumber);
-
-            if (ExpParams.Flop1 == null && PokerStatisticCalc.HoleCardsStatistic.ContainsKey(ExpParams.EnemyPlayersCount))
+            if (cards.IsNullOrEmpty())
             {
-                s += Environment.NewLine;
-                s += Environment.NewLine;
-
-                double min = PokerStatisticCalc.HoleCardsStatistic[ExpParams.EnemyPlayersCount].Item1;
-                double max = PokerStatisticCalc.HoleCardsStatistic[ExpParams.EnemyPlayersCount].Item2;
-                win_percent = Math.Max(win_percent, min);
-                win_percent = Math.Min(win_percent, max);
-                double d = 100 * (win_percent - min) / (max - min);
-
-                s += "Hole cards value: " + "{0:0.####}%".FormatStr(d);
+                return null;
             }
 
-            s += Environment.NewLine;
-            s += Environment.NewLine;
-            s += "Games:".PadRight(8) + stat.GameNumber.ToString();
-            s += Environment.NewLine;
-            s += "Enemy:".PadRight(8) + ExpParams.EnemyPlayersCount.ToString();
-            s += Environment.NewLine;
-            s += "Simulation time: {0}".FormatStr(calcTime);
-            s += Environment.NewLine;
-
-            result1_tb.Text = s;
-
-            s = null;
-            s += "Player hands histogram:";
-            s += Environment.NewLine;
-            s += Environment.NewLine;
-
-            Func<int, int, string> formatWinDrawLose =
-                (int value, int gameCount) =>
-                {
-                    return (value < 1 ? "-" : (Math.Round(value * 100 / (double)gameCount, 4).ToString() + "%")).PadRight(8);
-                };
-
-            foreach (Statistic.HandStatistic hs in stat.PlayerHandsStat.OrderBy(x => HandTypeConverter.GetHandValue(x.HandType)))
-            {
-                if (hs.Win == 0 && hs.Draw == 0 && hs.Lose == 0)
-                {
-                    continue;
-                }
-
-                s += "{0} {1}  |  {2}   {3}   {4}".FormatStr(
-                    (HandTypeConverter.GetName(hs.HandType) + ":").PadRight(20),
-                    formatWinDrawLose(hs.Win + hs.Draw + hs.Lose, stat.GameNumber),
-                    formatWinDrawLose(hs.Win, stat.GameNumber),
-                    formatWinDrawLose(hs.Draw, stat.GameNumber),
-                    formatWinDrawLose(hs.Lose, stat.GameNumber)
-                    );
-                s += Environment.NewLine;
-            }
-
-            result2_tb.Text = s;
-
-            s = null;
-            s += "Enemy hands histogram:";
-            s += Environment.NewLine;
-            s += Environment.NewLine;
-            s += "Wins: " + "{0:0.####}%".FormatStr(100 * stat.EnemyHandsStat.Select(x => x.Win).Sum() / (double)stat.GameNumber);
-            s += "    ";
-            s += "Draws: " + "{0:0.####}%".FormatStr(100 * stat.EnemyHandsStat.Select(x => x.Draw).Sum() / (double)stat.GameNumber);
-            s += "    ";
-            s += "Loses: " + "{0:0.####}%".FormatStr(100 * stat.EnemyHandsStat.Select(x => x.Lose).Sum() / (double)stat.GameNumber);
-            s += Environment.NewLine;
-            s += Environment.NewLine;
-
-            foreach (Statistic.HandStatistic hs in stat.EnemyHandsStat.OrderBy(x => HandTypeConverter.GetHandValue(x.HandType)))
-            {
-                if (hs.Win == 0)
-                {
-                    continue;
-                }
-
-                s += "{0} {1}  |  {2}   {3}   {4}".FormatStr(
-                    (HandTypeConverter.GetName(hs.HandType) + ":").PadRight(20),
-                    formatWinDrawLose(hs.Win + hs.Draw + hs.Lose, stat.GameNumber),
-                    formatWinDrawLose(hs.Win, stat.GameNumber),
-                    formatWinDrawLose(hs.Draw, stat.GameNumber),
-                    formatWinDrawLose(hs.Lose, stat.GameNumber)
-                    );
-                s += Environment.NewLine;
-            }
-
-            result3_tb.Text = s;
+            return string.Join(" ", cards.Select(x => ChangeRegisterCardString(CardUtils.ConvertToString(x))));
         }
+        //
 
-        private Card[] GetRandomHand()
+        private static Dictionary<Card, BitmapImage> BuildCardImages(System.Drawing.Bitmap cardImagesBitmap)
         {
             Card[] cards = GetAllCards();
-            Shuffle(cards);
 
-            return cards.Take(rnd.Next(2, 8)).ToArray();
-        }
-
-        private void Shuffle(Card[] cards)
-        {
-            var rnds = new int[cards.Length];
-
-            for (int i = cards.Length - 1; i > 0; i--)
+            var cardImages = new Dictionary<Card, BitmapImage>(CardComparer.Default);
+            foreach (Card card in cards)
             {
-                rnds[i] = rnd.Next(0, i + 1);
+                BitmapImage bi = GetCardImage(cardImagesBitmap, card.Suit, card.Value);
+                cardImages[card] = bi;
             }
 
-            for (int i = cards.Length - 1; i > 0; i--)
-            {
-                int rndIndx = rnds[i];
+            return cardImages;
+        }
 
-                if (rndIndx != i)
+        private static bool IsCardsNonOrderEqual(Card[] cards1, Card[] cards2)
+        {
+            var c1 = cards1.OrderBy(x => x, CardComparer.Default).ToArray();
+            var c2 = cards2.OrderBy(x => x, CardComparer.Default).ToArray();
+            return c1.SequenceEqual(c2);
+        }
+
+        // Clipboard require STA (Single Thread Apartment) helpers
+        private static void UseClipboardInSTA(Action action)
+        {
+            if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA)
+            {
+                action();
+            }
+            else
+            {
+                var th = new Thread(() => { action(); });
+                th.SetApartmentState(ApartmentState.STA);
+                th.Start();
+                th.Join();
+            }
+        }
+
+        public static T UseClipboardInSTA<T>(Func<T> func)
+        {
+            T res = default(T);
+
+            UseClipboardInSTA(
+                () =>
                 {
-                    Card tmp = cards[i];
-                    cards[i] = cards[rndIndx];
-                    cards[rndIndx] = tmp;
+                    res = func();
+                });
+
+            return res;
+        }
+        //
+
+        private static string ChangeRegisterCardString(string source)
+        {
+            if (source.IsNullOrWhiteSpaceStr())
+            {
+                return null;
+            }
+            char[] chars = source.ToCharArray();
+            for (int i = 0; i < chars.Length; i += 2)
+            {
+                chars[i] = char.ToUpperInvariant(chars[i]);
+            }
+            return new string(chars);
+        }
+
+        #endregion
+
+
+        #region GlobalKeyboardHook
+
+        private void SetGlobalKeyHooker()
+        {
+            _globalKeyHooker = new KeyInterceptor();
+            _globalKeyHooker.SetHook(GlobalKeyboardHook);
+        }
+
+        private void DisposeGlobalKeyHooker()
+        {
+            if (_globalKeyHooker == null)
+            {
+                return;
+            }
+
+            _globalKeyHooker.RemoveHook();
+            _globalKeyHooker = null;
+        }
+
+        private void GlobalKeyboardHook(int key)
+        {
+            char ch = (char)key;
+            try
+            {
+                GlobalKeyboardHookHandler(ch);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
+        }
+
+        private void GlobalKeyboardHookHandler(char ch)
+        {
+            if (MainView.IsActive)
+            {
+                return;
+            }
+
+            if (!IsWatchGlobalKeys)
+            {
+                return;
+            }
+
+            ch = char.ToLowerInvariant(ch);
+
+            int i;
+            bool b = int.TryParse(ch.ToString(), out i);
+
+            if (b)
+            {
+                EnemyPlayerCount = i;
+                return;
+            }
+
+            if (KeyManager.IsExternalInput_StartSimulation(ch))
+            {
+                StartCalculation();
+                return;
+            }
+
+            if (KeyManager.IsExternalInput_StopSimulation(ch))
+            {
+                CancelCalculation();
+                return;
+            }
+
+            if (KeyManager.IsExternalInput_GetCardsFromLogFile(ch))
+            {
+                Task.Factory.StartNew(
+                    () =>
+                    {
+                        try
+                        {
+                            HandleLogFileCards();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogException(ex);
+                        }
+                    });
+
+                return;
+            }
+        }
+
+        #endregion
+
+
+        #region Monitors
+
+        //
+        private void StartMonitor_LogFile()
+        {
+            Task.Factory.StartNew(
+                () =>
+                {
+                    while (true)
+                    {
+                        Thread.Sleep(FileMonitorSleep);
+
+                        try
+                        {
+                            LogFileMonitor();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogException(ex);
+                        }
+                    }
+                });
+        }
+
+        private void LogFileMonitor()
+        {
+            if (IsCalculating)
+            {
+                return;
+            }
+
+            if (!IsWatchCardsInClipboardAndLogFile)
+            {
+                return;
+            }
+
+            var fi = new FileInfo(MainWindowPr.LogFilePath);
+            if (!fi.Exists)
+            {
+                return;
+            }
+
+            if (_logFileSize == null || fi.Length == _logFileSize.Value)
+            {
+                return;
+            }
+
+            _logFileSize = fi.Length;
+
+            Task.Factory.StartNew(
+                () =>
+                {
+                    try
+                    {
+                        HandleLogFileCards();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogException(ex);
+                    }
+                });
+        }
+
+        private void HandleLogFileCards()
+        {
+            if (!File.Exists(LogFilePath))
+            {
+                return;
+            }
+
+            string str = null;
+            try
+            {
+                using (var fs = File.Open(MainWindowPr.LogFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sr = new StreamReader(fs))
+                {
+                    str = sr.ReadToEnd();
                 }
             }
-        }
-
-        private Card ParseCardSpecial(string s)
-        {
-            string value = new string(s.Take(s.Length - 1).ToArray());
-            char suit = s[s.Length - 1];
-
-            CardSuit cardSuit = CardUtils.ParseSuit(suit);
-
-            CardValue cardValue;
-            switch (value)
+            catch (Exception ex)
             {
-                case "14":
-                    cardValue = CardValue._Ace;
-                    break;
-                case "13":
-                    cardValue = CardValue._King;
-                    break;
-                case "12":
-                    cardValue = CardValue._Queen;
-                    break;
-                case "11":
-                    cardValue = CardValue._Jack;
-                    break;
-                case "10":
-                    cardValue = CardValue._10;
-                    break;
-                case "9":
-                    cardValue = CardValue._9;
-                    break;
-                case "8":
-                    cardValue = CardValue._8;
-                    break;
-                case "7":
-                    cardValue = CardValue._7;
-                    break;
-                case "6":
-                    cardValue = CardValue._6;
-                    break;
-                case "5":
-                    cardValue = CardValue._5;
-                    break;
-                case "4":
-                    cardValue = CardValue._4;
-                    break;
-                case "3":
-                    cardValue = CardValue._3;
-                    break;
-                case "2":
-                    cardValue = CardValue._2;
-                    break;
-                default:
-                    throw new InvalidOperationException();
+                Logger.LogException(ex);
             }
 
-            return new Card(cardSuit, cardValue);
+            try
+            {
+                Tuple<Card, Card> cards = ParseLast2CardsFromLogFile(str);
+                if (cards == null || cards.Item1 == null || cards.Item2 == null)
+                {
+                    return;
+                }
+
+                ProcessParsedFromLogFileCards(cards.Item1, cards.Item2);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+            }
         }
 
-        private T TryGetByIndx<T>(IList<T> collection, int indx, T defaultValue = default(T))
+        //
+        private void StartMonitor_Clipboard()
         {
-            if (collection.Count > indx)
+            Task.Factory.StartNew(
+                () =>
+                {
+                    while (true)
+                    {
+                        Thread.Sleep(MainWindowPr.ClipboardMonitorSleep);
+
+                        try
+                        {
+                            ClipboardMonitor();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogException(ex);
+                        }
+                    }
+                });
+        }
+
+        private void ClipboardMonitor()
+        {
+            if (!IsWatchCardsInClipboardAndLogFile)
             {
-                return collection[indx];
+                return;
             }
 
-            return defaultValue;
+            string s = UseClipboardInSTA(() => Clipboard.GetText());
+
+            if (s == _clipboardTxt)
+            {
+                return;
+            }
+
+            _clipboardTxt = s;
+
+            if (_clipboardTxt.IsNullOrEmptyStr())
+            {
+                return;
+            }
+
+            // extract cards string from text
+            var cards = new LinkedList<char>();
+
+            bool b = false;
+            for (int i = 0; i < _clipboardTxt.Length; i++)
+            {
+                if (_clipboardTxt[i] == '[')
+                {
+                    b = true;
+                    continue;
+                }
+                else if (_clipboardTxt[i] == ']')
+                {
+                    break;
+                }
+
+                if (b)
+                {
+                    cards.AddLast(_clipboardTxt[i]);
+                }
+            }
+
+            string cardsstr = new string(cards.ToArray());
+            //
+
+            if (cardsstr.IsNullOrWhiteSpaceStr())
+            {
+                return;
+            }
+
+            cardsstr = cardsstr.Replace(" ", string.Empty);
+
+            Card[] clipboardCards = null;
+            try
+            {
+                clipboardCards = ParseCardsFromCardsInput(cardsstr);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+                return;
+            }
+
+            if (clipboardCards.IsNullOrEmpty())
+            {
+                return;
+            }
+
+            CancelCalculation(
+                () =>
+                {
+                    SetCards(clipboardCards, true);
+                    StartCalculation();
+                });
         }
+
+        //
+        private void StartMonitor_ProgressWatcher()
+        {
+            Task.Factory.StartNew(
+                () =>
+                {
+                    while (true)
+                    {
+                        Thread.Sleep(ProgressWatcherSleep);
+
+                        bool finish;
+                        try
+                        {
+                            ProgressWatcherMonitor(out finish);
+                        }
+                        catch (Exception ex)
+                        {
+                            finish = false;
+                            Logger.LogException(ex);
+                        }
+
+                        if (finish)
+                        {
+                            break;
+                        }
+                    }
+                });
+        }
+
+        private void ProgressWatcherMonitor(out bool finish)
+        {
+            finish = false;
+
+            Task calculationTask = _calculationTask;
+            if (calculationTask == null)
+            {
+                finish = true;
+                return;
+            }
+
+            if (calculationTask.IsCompleted)
+            {
+                finish = true;
+                return;
+            }
+
+            CalculationParameters expParams = CalculationParameters;
+            if (expParams == null)
+            {
+                finish = true;
+                return;
+            }
+
+            int val = expParams.SimulatedGamesCount;
+            MainView.Pr_SetProgress(val);
+        }
+
+        #endregion
     }
 }

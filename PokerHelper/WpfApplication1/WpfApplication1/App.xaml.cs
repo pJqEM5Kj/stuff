@@ -12,5 +12,18 @@ namespace WpfApplication1
     /// </summary>
     public partial class App : Application
     {
+        private ApplicationCm ApplicationCm;
+
+
+        public App()
+        {
+            Startup += App_Startup;
+        }
+
+        private void App_Startup(object sender, StartupEventArgs e)
+        {
+            ApplicationCm = new ApplicationCm();
+            ApplicationCm.Start();
+        }
     }
 }
