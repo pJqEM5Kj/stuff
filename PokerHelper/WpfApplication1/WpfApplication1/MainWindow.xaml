@@ -7,7 +7,7 @@
         Height="600"
         Width="600"
         MinHeight="500"
-        MinWidth="100">
+        MinWidth="550">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="boolToVis" />
