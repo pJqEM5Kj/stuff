@@ -57,6 +57,7 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="ApplicationCm.cs" />
+    <Compile Include="AttachedProperties.cs" />
     <Compile Include="CalculationResult.cs" />
     <Compile Include="KeyInterceptor.cs" />
     <Compile Include="Logger.cs" />
@@ -79,6 +80,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Page Include="Controls\RenderWaiting.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Styles\Expander.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

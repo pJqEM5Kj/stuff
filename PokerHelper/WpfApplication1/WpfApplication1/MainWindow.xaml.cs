@@ -25,17 +25,31 @@ namespace WpfApplication1
 {
     public partial class MainWindow : Window
     {
+        public const string ResultIsDirtyMark = "dirty";
+
         internal MainWindowPr Presenter { get; set; }
 
         //
         private readonly TimeSpan enemyPlayerCount_tb_SelectTime = TimeSpan.FromMilliseconds(300);
-        private readonly Brush _invalidCards_color = Brushes.Red;
 
         //
         private System.Timers.Timer _enemyPlayerCount_tb_TextChanged_Timer;
         private Control _lastFocusedElement;
         private int _ignore_cards_tb_TextChanged = 0;
-        private Brush _validCards_color;
+
+
+        #region IsCardsValid
+
+        public static readonly DependencyProperty IsCardsValidProperty =
+            DependencyProperty.Register("IsCardsValid", typeof(bool), typeof(MainWindow), new FrameworkPropertyMetadata(true));
+
+        public bool IsCardsValid
+        {
+            get { return (bool)GetValue(IsCardsValidProperty); }
+            set { SetValue(IsCardsValidProperty, value); }
+        }
+
+        #endregion
 
 
         public MainWindow()
@@ -120,7 +134,7 @@ namespace WpfApplication1
                 return;
             }
 
-            Presenter.View_CardsInput_Changed(cards_tb.Text);
+            Presenter.View_CardsInput_Changed(cards_tb.Text, cards_tb.CaretIndex);
         }
 
         private void cards_tb_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -349,6 +363,8 @@ namespace WpfApplication1
                         default:
                             throw Utility.GetUnknownEnumValueException(Presenter.CalculationResult);
                     }
+
+                    InvalidateResultRelevance();
                 });
         }
 
@@ -372,7 +388,7 @@ namespace WpfApplication1
                 });
         }
 
-        internal void Pr_CorrectCardsString(string val)
+        internal void Pr_CorrectCardsString(string val, int mark)
         {
             EnsureUICall(
                 () =>
@@ -380,9 +396,8 @@ namespace WpfApplication1
                     _ignore_cards_tb_TextChanged++;
                     try
                     {
-                        int caretIndx = cards_tb.CaretIndex;
                         cards_tb.Text = val;
-                        cards_tb.CaretIndex = caretIndx;
+                        cards_tb.CaretIndex = mark;
                     }
                     finally
                     {
@@ -401,23 +416,8 @@ namespace WpfApplication1
                     {
                         cards_tb.Text = Presenter.Cards_Str;
 
-                        if (Presenter.Cards_IsValid)
-                        {
-                            cards_lbl.Foreground = _validCards_color;
-                        }
-                        else
-                        {
-                            cards_lbl.Foreground = _invalidCards_color;
-                        }
-
-                        if (Presenter.Cards_IsValid)
-                        {
-                            DisplayCards(Presenter.Cards);
-                        }
-                        else
-                        {
-                            DisplayCards(null);
-                        }
+                        InvalidateCardsValidity();
+                        InvalidateResultRelevance();
                     }
                     finally
                     {
@@ -476,7 +476,7 @@ namespace WpfApplication1
 
         private void InitialPreparations_Preview()
         {
-            _validCards_color = cards_lbl.Foreground;
+            //
         }
 
         private void InitialPreparations()
@@ -626,6 +626,32 @@ namespace WpfApplication1
                 {
                     cardImgCtrl.Source = null;
                 }
+            }
+        }
+
+        private void InvalidateCardsValidity()
+        {
+            if (Presenter.Cards_IsValid)
+            {
+                IsCardsValid = true;
+                DisplayCards(Presenter.Cards);
+            }
+            else
+            {
+                IsCardsValid = false;
+                DisplayCards(null);
+            }
+        }
+
+        private void InvalidateResultRelevance()
+        {
+            if (Presenter.IsCurrentCardsAreCalculated())
+            {
+                AttachedProperties.SetExtDatad(result_lbl, null);
+            }
+            else
+            {
+                AttachedProperties.SetExtDatad(result_lbl, ResultIsDirtyMark);
             }
         }
 
@@ -965,7 +991,7 @@ namespace WpfApplication1
             {
                 Cards_IsValid = true;
             }
-            
+
             Cards_Str = ConvertCardsToCardsInputStr(Cards);
 
             MainView.Pr_CardsChanged();
@@ -1120,6 +1146,45 @@ namespace WpfApplication1
             }
         }
 
+        internal bool IsCurrentCardsAreCalculated()
+        {
+            CalculationParameters cp = CalculationParameters;
+            if (cp == null)
+            {
+                return false;
+            }
+
+            var calculatedCards = new List<Card>();
+            calculatedCards.Add(cp.PlayerCard1);
+            calculatedCards.Add(cp.PlayerCard2);
+            calculatedCards.Add(cp.Flop1);
+            calculatedCards.Add(cp.Flop2);
+            calculatedCards.Add(cp.Flop3);
+            calculatedCards.Add(cp.Turn);
+            calculatedCards.Add(cp.River);
+
+            calculatedCards = calculatedCards
+                .TakeWhile(x => x != null)
+                .ToList();
+
+            Card[] currentCards = Cards;
+
+            int i1 = calculatedCards.IsNullOrEmpty() ? 0 : calculatedCards.Count;
+            int i2 = currentCards.IsNullOrEmpty() ? 0 : currentCards.Length;
+
+            if (i1 == 0 && i2 == 0)
+            {
+                return true;
+            }
+
+            if (i1 != i2)
+            {
+                return false;
+            }
+
+            return calculatedCards.SequenceEqual(currentCards, CardComparer.Default);
+        }
+
 
         #region From View
 
@@ -1185,44 +1250,14 @@ namespace WpfApplication1
             }
         }
 
-        internal void View_CardsInput_Changed(string val)
+        internal void View_CardsInput_Changed(string val, int mark)
         {
-            string correctedVal = null;
-
-            if (!val.IsNullOrEmptyStr())
-            {
-                bool flag = true;
-                for (int i = 0; i < val.Length; i++)
-                {
-                    char c = val[i];
-
-                    if (char.IsWhiteSpace(c))
-                    {
-                        correctedVal += c;
-                        continue;
-                    }
-
-                    if (flag)
-                    {
-                        correctedVal += char.ToUpperInvariant(c);
-                    }
-                    else
-                    {
-                        correctedVal += char.ToLowerInvariant(c);
-                    }
-
-                    flag = !flag;
-                }
-            }
-
-            Cards_Str = correctedVal;
-            MainView.Pr_CorrectCardsString(correctedVal);
-
             bool parsed = true;
             Card[] cards = null;
+            bool lastSymbolIgnored = false;
             try
             {
-                cards = ParseCardsFromCardsInput(correctedVal);
+                cards = ParseCardsFromCardsInput(val, out lastSymbolIgnored);
             }
             catch (Exception ex)
             {
@@ -1233,10 +1268,38 @@ namespace WpfApplication1
             if (parsed)
             {
                 Cards = cards;
-                Cards_IsValid = true;
+                Cards_IsValid = !Cards.IsNullOrEmpty();
+
+                if (!lastSymbolIgnored)
+                {
+                    Cards_Str = ConvertCardsToCardsInputStr(Cards);
+
+                    int correctedMark = 0;
+                    if (!val.IsNullOrEmptyStr())
+                    {
+                        for (int i = 0; i < Math.Min(val.Length, mark); i++)
+                        {
+                            if (!char.IsWhiteSpace(val[i]))
+                            {
+                                correctedMark++;
+                            }
+                        }
+
+                        int tmp = (correctedMark % 2 == 0) ? (correctedMark / 2) - 1 : correctedMark / 2;
+                        correctedMark += Math.Max(0, tmp);
+                    }
+
+                    MainView.Pr_CorrectCardsString(Cards_Str, correctedMark);
+                }
+                else
+                {
+                    Cards_Str = val;
+                }
             }
             else
             {
+                Cards = null;
+                Cards_Str = val;
                 Cards_IsValid = false;
             }
 
@@ -1523,8 +1586,9 @@ namespace WpfApplication1
         }
 
         // parse convert cards to/from UI
-        private static Card[] ParseCardsFromCardsInput(string s)
+        private static Card[] ParseCardsFromCardsInput(string s, out bool lastSymbolIgnored)
         {
+            lastSymbolIgnored = false;
             if (s.IsNullOrWhiteSpaceStr())
             {
                 return null;
@@ -1536,6 +1600,7 @@ namespace WpfApplication1
             if (count % 2 == 1)
             {
                 count--;
+                lastSymbolIgnored = true;
             }
 
             var cards = new List<Card>();
@@ -1758,7 +1823,7 @@ namespace WpfApplication1
                 return;
             }
 
-            if (_logFileSize != null && fi.Length == _logFileSize.Value)
+            if (_logFileSize == fi.Length)
             {
                 return;
             }
@@ -1894,7 +1959,8 @@ namespace WpfApplication1
             Card[] clipboardCards = null;
             try
             {
-                clipboardCards = ParseCardsFromCardsInput(cardsstr);
+                bool dummy;
+                clipboardCards = ParseCardsFromCardsInput(cardsstr, out dummy);
             }
             catch (Exception ex)
             {

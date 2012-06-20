@@ -1,5 +1,1 @@
-when editing cards box - no spaces
-
 turn and river statistic (?)
-
-mark stat as dirty when cards changes
