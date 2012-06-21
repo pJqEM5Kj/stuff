@@ -1,1 +1,5 @@
 turn and river statistic (?)
+
+logging
+
+save settings

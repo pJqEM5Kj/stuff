@@ -1645,36 +1645,6 @@ namespace WpfApplication1
             return c1.SequenceEqual(c2);
         }
 
-        // Clipboard require STA (Single Thread Apartment) helpers
-        private static void UseClipboardInSTA(Action action)
-        {
-            if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA)
-            {
-                action();
-            }
-            else
-            {
-                var th = new Thread(() => { action(); });
-                th.SetApartmentState(ApartmentState.STA);
-                th.Start();
-                th.Join();
-            }
-        }
-
-        public static T UseClipboardInSTA<T>(Func<T> func)
-        {
-            T res = default(T);
-
-            UseClipboardInSTA(
-                () =>
-                {
-                    res = func();
-                });
-
-            return res;
-        }
-        //
-
         private static string ChangeRegisterCardString(string source)
         {
             if (source.IsNullOrWhiteSpaceStr())
@@ -1884,7 +1854,7 @@ namespace WpfApplication1
         //
         private void StartMonitor_Clipboard()
         {
-            Task.Factory.StartNew(
+            var clipboardMonitorThread = new Thread(
                 () =>
                 {
                     while (true)
@@ -1901,6 +1871,9 @@ namespace WpfApplication1
                         }
                     }
                 });
+
+            clipboardMonitorThread.SetApartmentState(ApartmentState.STA);
+            clipboardMonitorThread.Start();
         }
 
         private void ClipboardMonitor()
@@ -1910,7 +1883,16 @@ namespace WpfApplication1
                 return;
             }
 
-            string s = UseClipboardInSTA(() => Clipboard.GetText());
+            string s = null;
+            try
+            {
+                s = Clipboard.GetText();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogException(ex);
+                return;
+            }
 
             if (s == _clipboardTxt)
             {
