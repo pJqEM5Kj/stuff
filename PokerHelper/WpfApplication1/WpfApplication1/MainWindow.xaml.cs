@@ -1872,6 +1872,7 @@ namespace WpfApplication1
                     }
                 });
 
+            clipboardMonitorThread.IsBackground = true;
             clipboardMonitorThread.SetApartmentState(ApartmentState.STA);
             clipboardMonitorThread.Start();
         }

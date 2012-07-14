@@ -1,0 +1,117 @@
+﻿    public struct Maybe<T>
+    {
+        private bool _hasValue;
+        public bool HasValue { get { return _hasValue; } }
+
+        private T _value;
+        public T Value
+        {
+            get
+            {
+                if (!_hasValue)
+                {
+                    throw new InvalidOperationException();
+                }
+
+                return _value;
+            }
+        }
+
+        public static Maybe<T> NoValue { get { return new Maybe<T>(); } }
+
+
+        public Maybe(T value)
+        {
+            _value = value;
+            _hasValue = true;
+        }
+
+        public static implicit operator Maybe<T>(T value)
+        {
+            return new Maybe<T>(value);
+        }
+
+        public static explicit operator T(Maybe<T> value)
+        {
+            return value.Value;
+        }
+
+        public static bool operator ==(Maybe<T> valueA, Maybe<T> valueB)
+        {
+            return valueA.Equals(valueB);
+        }
+
+        public static bool operator !=(Maybe<T> valueA, Maybe<T> valueB)
+        {
+            return !(valueA == valueB);
+        }
+
+        public T GetValueOrDefault(T defaultValue = default(T))
+        {
+            if (HasValue)
+            {
+                return Value;
+            }
+
+            return defaultValue;
+        }
+
+        public bool TryGet(out T value)
+        {
+            if (HasValue)
+            {
+                value = Value;
+                return true;
+            }
+
+            value = default(T);
+            return false;
+        }
+
+        public override bool Equals(object other)
+        {
+            if (other is Maybe<T>)
+            {
+                return Equals((Maybe<T>)other);
+            }
+            else
+            {
+                return (HasValue && object.Equals(Value, other));
+            }
+        }
+
+        public bool Equals(Maybe<T> other)
+        {
+            if (HasValue && other.HasValue)
+            {
+                return object.Equals(Value, other.Value);
+            }
+
+            if (!HasValue && !other.HasValue)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            if (!HasValue)
+            {
+                return 0;
+            }
+
+            return Value.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            if (HasValue)
+            {
+                return Value.ToString();
+            }
+
+            return null;
+        }
+    }
