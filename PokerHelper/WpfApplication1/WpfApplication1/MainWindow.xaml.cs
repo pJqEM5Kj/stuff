@@ -844,7 +844,10 @@ namespace WpfApplication1
                () =>
                {
                    var sw = Stopwatch.StartNew();
-                   statistic = Application.CalculatePokerStatistic(CalculationParameters);
+
+                   var psc = new PokerStatisticCalc();
+                   statistic = psc.RunExperiment(CalculationParameters);
+
                    sw.Stop();
                    calcTime = sw.Elapsed;
                },
